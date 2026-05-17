@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>慕然Agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-deep: #000000;
+            --kimi-blue: #4596f2;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --glass-bg: rgba(21, 45, 73, 0.6);
+            --glass-border: rgba(143, 192, 247, 0.25);
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+        }
+
+        body {
+            background-color: #020305;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 背景层保持原样 */
+        .home-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-color: #050810;
+            background-image: radial-gradient(100% 80% at 50% 0%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 50%, transparent 100%), url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.12'/%3E%3C/svg%3E"), radial-gradient(160% 40% at 50% 105%, #000 45%, transparent 45.5%), radial-gradient(140% 90% at 50% 100%, #f7ce88 0%, #d65d26 12%, #2b5885 42%, #0f2045 60%, #050810 90%);
+            background-size: 100% 100%, 120px 120px, 100% 100%, 100% 100%;
+            background-repeat: no-repeat, repeat, no-repeat, no-repeat;
+            background-blend-mode: screen, overlay, normal, normal;
+        }
+
+        .stars-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            background-image: radial-gradient(ellipse at 25% 35%, rgba(30,50,80,0.15) 0%, transparent 40%), radial-gradient(ellipse at 75% 65%, rgba(20,40,70,0.12) 0%, transparent 35%), radial-gradient(ellipse at 60% 20%, rgba(40,60,90,0.08) 0%, transparent 30%), radial-gradient(1px 1px at 60px 80px, rgba(255,255,255,0.5), transparent), radial-gradient(1px 1px at 120px 160px, rgba(255,255,255,0.7), transparent), radial-gradient(1px 1px at 240px 220px, rgba(255,255,255,0.6), transparent), radial-gradient(1px 1px at 360px 120px, rgba(255,255,255,0.5), transparent), radial-gradient(1px 1px at 420px 260px, rgba(255,255,255,0.7), transparent), radial-gradient(1px 1px at 520px 180px, rgba(255,255,255,0.6), transparent);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 400px 400px, 400px 400px, 400px 400px, 400px 400px, 400px 400px, 400px 400px;
+            animation: starTwinkleSoft 8s ease-in-out infinite;
+        }
+
+        @keyframes starTwinkleSoft {
+            0%, 100% { opacity: 0.65; filter: brightness(0.95); }
+            50% { opacity: 0.9; filter: brightness(1.05); }
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+
+        .app-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, #fff, var(--kimi-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .settings-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            font-size: 20px;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .settings-btn:hover {
+            background: rgba(69,150,242,0.3);
+            transform: rotate(30deg);
+            border-color: var(--kimi-blue);
+        }
+
+        .main-container {
+            position: relative;
+            z-index: 10;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 100px;
+        }
+
+        .avatar-section {
+            height: 35vh;
+            min-height: 250px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: height 0.5s ease;
+        }
+
+        .avatar-section.compact {
+            height: 15vh;
+            min-height: 120px;
+        }
+
+        .kimi-avatar-container {
+            width: 260px;
+            height: 260px;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .avatar-section.compact .kimi-avatar-container {
+            width: 100px;
+            height: 100px;
+        }
+
+        #kimiAvatarCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            filter: drop-shadow(0 0 20px rgba(69,150,242,0.3));
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-container::after {
+            content: '';
+            display: block;
+            height: 30px;
+            width: 100%;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 14px 18px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.6;
+            animation: messagePop 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+            word-wrap: break-word;
+        }
+
+        /* Markdown 渲染样式 */
+        .message.assistant p { margin: 0.4em 0; }
+        .message.assistant code { background: rgba(0,0,0,0.4); padding: 2px 5px; border-radius: 6px; font-family: monospace; }
+        .message.assistant pre { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 0.6em 0; }
+        .message.assistant pre code { background: none; padding: 0; }
+        .message.assistant ul, .message.assistant ol { margin: 0.4em 0; padding-left: 1.5em; }
+        .message.assistant table { border-collapse: collapse; width: 100%; margin: 0.6em 0; }
+        .message.assistant th, .message.assistant td { border: 1px solid rgba(255,255,255,0.3); padding: 6px 10px; }
+        .message.assistant a { color: var(--kimi-blue); text-decoration: none; }
+        .message.assistant blockquote { border-left: 3px solid var(--kimi-blue); margin: 0.5em 0; padding-left: 1em; color: rgba(255,255,255,0.8); }
+
+        @keyframes messagePop {
+            from { opacity: 0; transform: translateY(10px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, rgba(69,150,242,0.9), rgba(30,100,200,0.9));
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.assistant.loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%,20% { content: '.'; }
+            40% { content: '..'; }
+            60%,100% { content: '...'; }
+        }
+
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px 20px 30px;
+            background: linear-gradient(to top, rgba(2,3,5,1) 60%, rgba(2,3,5,0));
+            z-index: 50;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .chat-input {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 24px;
+            padding: 14px 50px 14px 20px;
+            color: white;
+            font-size: 15px;
+            outline: none;
+            backdrop-filter: blur(10px);
+        }
+
+        .chat-input:focus {
+            background: rgba(255,255,255,0.12);
+            border-color: var(--kimi-blue);
+            box-shadow: 0 0 15px rgba(69,150,242,0.2);
+        }
+
+        .send-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            background: var(--kimi-blue);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .send-btn:hover {
+            background: #5aa3f5;
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            background: linear-gradient(180deg, #1a2c42 0%, #0d1420 100%);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--kimi-blue);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .form-input, .form-select {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 12px 15px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        .form-select { cursor: pointer; }
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        input:checked + .slider { background-color: var(--kimi-blue); }
+        input:checked + .slider:before { transform: translateX(20px); }
+        .save-btn {
+            width: 100%;
+            background: var(--kimi-blue);
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        .save-btn:hover { background: #3a85d9; }
+        .footer-info {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        @media (max-width: 480px) {
+            .kimi-avatar-container { width: 200px; height: 200px; }
+            .avatar-section.compact .kimi-avatar-container { width: 80px; height: 80px; }
+            .message { max-width: 90%; font-size: 14px; }
+            .main-container { padding-bottom: 120px; }
+            .chat-container::after { height: 40px; }
+        }
+    </style>
+</head>
+<body>
+<div class="home-bg"></div>
+<div class="stars-bg"></div>
+
+<header class="header">
+    <div class="app-title" id="displayAppName">慕然Agent</div>
+    <button class="settings-btn" id="settingsBtn">⚙</button>
+</header>
+
+<main class="main-container">
+    <div class="avatar-section" id="avatarSection">
+        <div class="kimi-avatar-container">
+            <canvas id="kimiAvatarCanvas"></canvas>
+        </div>
+    </div>
+    <div class="chat-container" id="chatContainer">
+        <div class="message assistant">
+            你好，我是 <span id="welcomeName">慕然Agent</span>。<br>支持多款主流模型，DeepSeek 全系最新模型已更新，并提供联网搜索与深度思考开关。
+        </div>
+    </div>
+</main>
+
+<div class="input-area">
+    <div class="input-wrapper">
+        <input type="text" class="chat-input" id="chatInput" placeholder="输入消息...">
+        <button class="send-btn" id="sendBtn">➤</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">模型设置</h2>
+            <button class="close-btn" id="closeModal">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">助手名称</label>
+            <input type="text" class="form-input" id="settingName" placeholder="慕然Agent">
+        </div>
+        <div class="form-group">
+            <label class="form-label">品牌</label>
+            <select class="form-select" id="settingBrand"></select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">模型</label>
+            <select class="form-select" id="settingModel"></select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">API 地址</label>
+            <input type="text" class="form-input" id="settingApiUrl" placeholder="https://api.deepseek.com/v1">
+        </div>
+        <div class="form-group">
+            <label class="form-label">API 密钥</label>
+            <input type="password" class="form-input" id="settingApiKey" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+            <div class="checkbox-row"><label>联网搜索</label><label class="toggle-switch"><input type="checkbox" id="webSearchToggle"><span class="slider"></span></label></div>
+            <div class="checkbox-row" style="margin-top:12px;"><label>深度思考</label><label class="toggle-switch"><input type="checkbox" id="deepThinkToggle"><span class="slider"></span></label></div>
+            <div style="font-size:11px; color:#8ab4f8; margin-top:8px;">需要模型API支持对应参数</div>
+        </div>
+        <button class="save-btn" id="saveSettings">保存设置</button>
+        <div class="footer-info">品牌集中管理 · DeepSeek 全系模型已更新（V4, V3, R1等）<br><a href="https://www.ccwmoran.top" target="_blank" style="color:var(--kimi-blue);">www.ccwmoran.top</a></div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ==================== 品牌与模型库（DeepSeek 官方全系可用模型）====================
+        // 根据 DeepSeek 官方 API 文档 (api-docs.deepseek.com) 和定价页面，当前可用的模型列表包括：
+        // - deepseek-v4-pro: 高性能推理模型，1.6T 参数，1M 上下文[reference:0][reference:1]
+        // - deepseek-v4-flash: 轻量快速版本，支持思考/非思考模式[reference:2][reference:3]
+        // - deepseek-v3: 通用版本，支持 160K 上下文[reference:4]
+        // - deepseek-v3.1: 增强版本，支持工具调用和 Agent 能力[reference:5][reference:6]
+        // - deepseek-r1: 推理增强模型[reference:7]
+        // - deepseek-chat: 旧版别名，指向 deepseek-v4-flash 非思考模式，将于 2026-07-24 停用[reference:8]
+        // - deepseek-reasoner: 旧版别名，指向 deepseek-v4-flash 思考模式，将于 2026-07-24 停用[reference:9]
+        // 注意：旧版 deepseek-chat 和 deepseek-reasoner 当前仍可使用，但已标记为弃用。
+        // 为提供最完整的选项，保留这两个模型名称作为兼容选项。
+        const BRAND_MODELS = {
+            openai: { name: 'OpenAI (ChatGPT)', baseUrl: 'https://api.openai.com/v1', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
+            deepseek: { 
+                name: 'DeepSeek', 
+                baseUrl: 'https://api.deepseek.com/v1', 
+                models: [
+                    'deepseek-v4-pro',      // 高性能旗舰模型，1.6T 参数，1M 上下文[reference:10][reference:11]
+                    'deepseek-v4-flash',    // 轻量快速版本，1M 上下文[reference:12][reference:13]
+                    'deepseek-v3.1',        // 2025-08-21 更新，增强 Agent 能力[reference:14]
+                    'deepseek-v3',          // 通用版本[reference:15]
+                    'deepseek-r1',          // 推理增强模型[reference:16]
+                    'deepseek-chat',        // 旧版别名，指向 v4-flash 非思考模式，2026-07-24 停用[reference:17]
+                    'deepseek-reasoner'     // 旧版别名，指向 v4-flash 思考模式，2026-07-24 停用[reference:18]
+                ] 
+            },
+            moonshot: { name: 'Kimi (月之暗面)', baseUrl: 'https://api.moonshot.cn/v1', models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
+            yuanbao: { name: '腾讯元宝', baseUrl: 'https://api.yuanbao.tencent.com/v1', models: ['hunyuan-turbo', 'hunyuan-standard'] },
+            doubao: { name: '豆包 (字节)', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', models: ['doubao-pro-32k', 'doubao-lite-32k'] },
+            qwen: { name: 'Qwen (通义)', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', models: ['qwen-max-latest', 'qwen-plus-latest', 'qwen-turbo-latest'] },
+            glm: { name: 'GLM (智谱)', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-4-plus', 'glm-4', 'glm-3-turbo'] }
+        };
+
+        // 状态管理
+        let state = {
+            apiUrl: localStorage.getItem('agent_apiUrl') || '',
+            apiKey: localStorage.getItem('agent_apiKey') || '',
+            agentName: localStorage.getItem('agent_name') || '慕然Agent',
+            brand: localStorage.getItem('agent_brand') || 'deepseek',
+            model: localStorage.getItem('agent_model') || 'deepseek-v4-pro',
+            webSearch: localStorage.getItem('agent_webSearch') === 'true',
+            deepThink: localStorage.getItem('agent_deepThink') === 'true',
+            isProcessing: false
+        };
+
+        // DOM 元素
+        const els = {
+            chatContainer: document.getElementById('chatContainer'),
+            chatInput: document.getElementById('chatInput'),
+            sendBtn: document.getElementById('sendBtn'),
+            settingsBtn: document.getElementById('settingsBtn'),
+            settingsModal: document.getElementById('settingsModal'),
+            closeModal: document.getElementById('closeModal'),
+            saveSettings: document.getElementById('saveSettings'),
+            settingName: document.getElementById('settingName'),
+            settingBrand: document.getElementById('settingBrand'),
+            settingModel: document.getElementById('settingModel'),
+            settingApiUrl: document.getElementById('settingApiUrl'),
+            settingApiKey: document.getElementById('settingApiKey'),
+            displayAppName: document.getElementById('displayAppName'),
+            welcomeName: document.getElementById('welcomeName'),
+            webSearchToggle: document.getElementById('webSearchToggle'),
+            deepThinkToggle: document.getElementById('deepThinkToggle'),
+            avatarSection: document.getElementById('avatarSection')
+        };
+
+        function updateAppName(name) {
+            els.displayAppName.textContent = name;
+            els.welcomeName.textContent = name;
+            document.title = name;
+        }
+
+        function addMessage(text, role, isMarkdown = false) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            if (role === 'assistant' && isMarkdown && text) {
+                div.innerHTML = marked.parse(text);
+            } else {
+                div.textContent = text;
+            }
+            els.chatContainer.appendChild(div);
+            setTimeout(() => {
+                div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                els.chatContainer.scrollTop = els.chatContainer.scrollHeight;
+            }, 20);
+        }
+
+        function populateBrandSelect() {
+            els.settingBrand.innerHTML = '';
+            for (const [key, brand] of Object.entries(BRAND_MODELS)) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = brand.name;
+                els.settingBrand.appendChild(opt);
+            }
+            els.settingBrand.value = state.brand;
+        }
+
+        function updateModelDropdown() {
+            const brandKey = els.settingBrand.value;
+            const brand = BRAND_MODELS[brandKey];
+            els.settingModel.innerHTML = '';
+            if (brand) {
+                brand.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    els.settingModel.appendChild(opt);
+                });
+                if (brand.models.includes(state.model)) {
+                    els.settingModel.value = state.model;
+                } else {
+                    els.settingModel.selectedIndex = 0;
+                    if (els.settingModel.options[0]) state.model = els.settingModel.options[0].value;
+                }
+                els.settingApiUrl.value = brand.baseUrl;
+            }
+        }
+
+        function loadSettingsToUI() {
+            els.settingName.value = state.agentName;
+            els.settingApiUrl.value = state.apiUrl;
+            els.settingApiKey.value = state.apiKey;
+            els.webSearchToggle.checked = state.webSearch;
+            els.deepThinkToggle.checked = state.deepThink;
+            populateBrandSelect();
+            updateModelDropdown();
+        }
+
+        function saveSettings() {
+            state.agentName = els.settingName.value.trim() || '慕然Agent';
+            state.brand = els.settingBrand.value;
+            state.model = els.settingModel.value;
+            state.apiUrl = els.settingApiUrl.value.trim();
+            state.apiKey = els.settingApiKey.value;
+            state.webSearch = els.webSearchToggle.checked;
+            state.deepThink = els.deepThinkToggle.checked;
+            localStorage.setItem('agent_name', state.agentName);
+            localStorage.setItem('agent_brand', state.brand);
+            localStorage.setItem('agent_model', state.model);
+            localStorage.setItem('agent_apiUrl', state.apiUrl);
+            localStorage.setItem('agent_apiKey', state.apiKey);
+            localStorage.setItem('agent_webSearch', state.webSearch);
+            localStorage.setItem('agent_deepThink', state.deepThink);
+            updateAppName(state.agentName);
+            els.settingsModal.classList.remove('active');
+            addMessage(`设置已保存 · ${state.model} · 联网:${state.webSearch?'开':'关'} 深度思考:${state.deepThink?'开':'关'}`, 'assistant');
+        }
+
+        async function fetchAIResponse(userMessage) {
+            const responseDiv = document.createElement('div');
+            responseDiv.className = 'message assistant loading';
+            els.chatContainer.appendChild(responseDiv);
+            responseDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+            let baseUrl = state.apiUrl.replace(/\/+$/, '');
+            const apiEndpoint = baseUrl + '/chat/completions';
+            let modelName = state.model;
+            if (!modelName && BRAND_MODELS[state.brand]) {
+                modelName = BRAND_MODELS[state.brand].models[0] || '';
+            }
+            if (!modelName) modelName = 'deepseek-v4-pro';
+
+            let requestBody = {
+                model: modelName,
+                messages: [{ role: "system", content: "你是慕然Agent，一个智能助手。" }, { role: "user", content: userMessage }],
+                stream: true,
+                temperature: 0.7
+            };
+            if (state.webSearch) { requestBody.enable_search = true; requestBody.web_search = true; }
+            if (state.deepThink) { requestBody.reasoning_effort = "high"; requestBody.enable_thinking = true; }
+
+            try {
+                const response = await fetch(apiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}` },
+                    body: JSON.stringify(requestBody)
+                });
+                if (!response.ok) {
+                    let errorText = `API 错误 (${response.status})`;
+                    try {
+                        const errData = await response.json();
+                        errorText = errData.error?.message || errorText;
+                    } catch (e) {}
+                    throw new Error(errorText);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "", buffer = "";
+                responseDiv.classList.remove('loading');
+                setAvatarState('speaking');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || "";
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed || trimmed === 'data: [DONE]') continue;
+                        if (trimmed.startsWith('data:')) {
+                            try {
+                                const json = JSON.parse(trimmed.slice(5));
+                                const delta = json.choices?.[0]?.delta?.content || '';
+                                if (delta) {
+                                    fullText += delta;
+                                    responseDiv.textContent = fullText;
+                                    responseDiv.scrollIntoView({ behavior: 'auto', block: 'end' });
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+                if (fullText) responseDiv.innerHTML = marked.parse(fullText);
+                else responseDiv.textContent = "(无内容)";
+            } catch (err) {
+                responseDiv.classList.remove('loading');
+                responseDiv.textContent = `错误: ${err.message}`;
+            } finally {
+                state.isProcessing = false;
+                setAvatarState('idle');
+            }
+        }
+
+        async function handleSend() {
+            const text = els.chatInput.value.trim();
+            if (!text || state.isProcessing) return;
+            addMessage(text, 'user');
+            els.chatInput.value = '';
+            state.isProcessing = true;
+            setAvatarState('thinking');
+            els.avatarSection.classList.add('compact');
+            if (!state.apiKey) { addMessage("请先在设置中配置 API 密钥。", 'assistant'); state.isProcessing=false; setAvatarState('idle'); return; }
+            if (!state.apiUrl) { addMessage("请配置 API 地址。", 'assistant'); state.isProcessing=false; setAvatarState('idle'); return; }
+            await fetchAIResponse(text);
+        }
+
+        // 粒子头像动画
+        let avatarState = 'idle';
+        function setAvatarState(s) { avatarState = s; }
+        function initKimiAvatar(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let particles = [], rotation=0, breathe=0;
+            function resize(){ const rect=canvas.parentElement.getBoundingClientRect(); canvas.width=rect.width*2; canvas.height=rect.height*2; }
+            window.addEventListener('resize',resize); resize();
+            for(let i=0;i<1200;i++){
+                const r=110, theta=Math.random()*2*Math.PI, phi=Math.acos(2*Math.random()-1);
+                const tx=r*Math.sin(phi)*Math.cos(theta), ty=r*Math.sin(phi)*Math.sin(theta), tz=r*Math.cos(phi);
+                particles.push({tx,ty,tz, x:600*Math.cos(Math.random()*2*Math.PI), y:600*Math.sin(Math.random()*2*Math.PI), z:(Math.random()-0.5)*1500, color:Math.random()>0.3?'#4596f2':'#ecf5fe', size:Math.random()*2+0.8, alpha:Math.random()*0.6+0.3});
+            }
+            function animate(){
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                const cx=canvas.width/2, cy=canvas.height/2, fov=350;
+                let speed=0.005; if(avatarState==='thinking') speed=0.02; if(avatarState==='speaking') speed=0.012;
+                rotation+=speed; breathe+=0.03;
+                let scale=1+Math.sin(breathe)*0.03; if(avatarState==='thinking') scale=1+Math.sin(breathe*3)*0.06;
+                particles.forEach(p=>{
+                    p.x+=(p.tx-p.x)*0.05; p.y+=(p.ty-p.y)*0.05; p.z+=(p.tz-p.z)*0.05;
+                    let x2=p.x*Math.cos(rotation)-p.z*Math.sin(rotation);
+                    let z2=p.x*Math.sin(rotation)+p.z*Math.cos(rotation);
+                    let y2=p.y;
+                    x2*=scale; y2*=scale; z2*=scale;
+                    const proj=fov/(fov+z2);
+                    if(proj>0){
+                        const xd=x2*proj+cx, yd=y2*proj+cy, sz=p.size*proj;
+                        ctx.globalAlpha=p.alpha; ctx.fillStyle=p.color;
+                        ctx.beginPath(); ctx.arc(xd,yd,sz,0,Math.PI*2); ctx.fill();
+                    }
+                });
+                ctx.globalAlpha=1; ctx.fillStyle='white'; ctx.shadowBlur=15;
+                const eyeY=Math.sin(breathe)*2;
+                ctx.beginPath(); ctx.ellipse(cx-42,cy-20+eyeY,14,24,0,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(cx+42,cy-20+eyeY,14,24,0,0,Math.PI*2); ctx.fill();
+                ctx.shadowBlur=0;
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function init() {
+            loadSettingsToUI();
+            initKimiAvatar('kimiAvatarCanvas');
+            updateAppName(state.agentName);
+            els.settingsBtn.onclick=()=>els.settingsModal.classList.add('active');
+            els.closeModal.onclick=()=>els.settingsModal.classList.remove('active');
+            els.settingsModal.onclick=(e)=>e.target===els.settingsModal&&els.settingsModal.classList.remove('active');
+            els.settingBrand.onchange=updateModelDropdown;
+            els.saveSettings.onclick=saveSettings;
+            els.sendBtn.onclick=handleSend;
+            els.chatInput.onkeypress=e=>{if(e.key==='Enter') handleSend();};
+            if(!state.apiKey) addMessage("请点击右上角设置，选择模型并填入 API Key。", 'assistant');
+        }
+        init();
+    })();
+</script>
+</body>
+</html>
