@@ -22,6 +22,8 @@
             --success: #10B981;
             --warning: #F59E0B;
             --error: #EF4444;
+            --console-bg: #1e1e2f;
+            --console-text: #cbd5e6;
         }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -322,6 +324,52 @@
         .preview-btn:hover {
             background: var(--muyan-green-dark);
         }
+        .console-area {
+            background: var(--console-bg);
+            color: var(--console-text);
+            border-top: 1px solid var(--border-light);
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'SF Mono', monospace;
+            font-size: 12px;
+        }
+        .console-header {
+            padding: 6px 12px;
+            background: #2a2a3b;
+            font-weight: 500;
+            border-bottom: 1px solid #3a3a4b;
+            display: flex;
+            gap: 16px;
+        }
+        .console-header span {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .console-header span.active {
+            opacity: 1;
+            color: var(--muyan-green);
+        }
+        .console-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+            line-height: 1.5;
+        }
+        .log-entry {
+            margin: 4px 0;
+            border-left: 2px solid transparent;
+            padding-left: 8px;
+        }
+        .log-info { border-left-color: var(--muyan-green); }
+        .log-error { border-left-color: var(--error); color: #fca5a5; }
+        .log-warn { border-left-color: var(--warning); }
+        .log-success { border-left-color: var(--success); }
+        .log-time {
+            color: #8892b0;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -362,6 +410,13 @@
         </div>
         <div class="agent-panel">
             <div class="messages" id="messages"></div>
+            <div class="console-area">
+                <div class="console-header">
+                    <span id="consoleTabLog" class="active">📋 执行日志</span>
+                    <span id="consoleTabClear" style="margin-left:auto;">🗑️ 清空</span>
+                </div>
+                <div class="console-log" id="consoleLog"></div>
+            </div>
             <div class="input-area">
                 <textarea id="prompt" rows="1" placeholder="描述任务，我会用工作台和真实工具完成"></textarea>
                 <button id="sendBtn" class="primary">发送</button>
@@ -382,6 +437,9 @@
     let agentActive = false;
     let waitingResolver = null;
     let conversationHistory = [];
+    let lastReplyHash = "";
+    let consecutiveSameCount = 0;
+    let noOperationCount = 0;
 
     const fileTreeDiv = document.getElementById("fileTree");
     const editor = document.getElementById("editor");
@@ -401,14 +459,27 @@
     const modelSelect = document.getElementById("modelSelect");
     const saveKeyBtn = document.getElementById("saveKeyBtn");
     const manualPreviewBtn = document.getElementById("manualPreviewBtn");
+    const consoleLogDiv = document.getElementById("consoleLog");
+    const consoleTabClear = document.getElementById("consoleTabClear");
+
+    function addConsoleLog(message, type = "info") {
+        const entry = document.createElement("div");
+        entry.className = `log-entry log-${type}`;
+        const time = new Date().toLocaleTimeString();
+        entry.innerHTML = `<span class="log-time">[${time}]</span> ${escapeHtml(message)}`;
+        consoleLogDiv.appendChild(entry);
+        entry.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    consoleTabClear.onclick = () => { consoleLogDiv.innerHTML = ""; addConsoleLog("控制台已清空", "info"); };
 
     if (apiKey) apiKeyInput.value = apiKey;
     saveKeyBtn.onclick = () => {
         apiKey = apiKeyInput.value.trim();
         localStorage.setItem("muyan_api", apiKey);
         addFeedbackMsg("✅ API Key 已保存");
+        addConsoleLog("API Key 已保存", "success");
     };
-    modelSelect.onchange = () => { selectedModel = modelSelect.value; };
+    modelSelect.onchange = () => { selectedModel = modelSelect.value; addConsoleLog(`切换模型: ${selectedModel}`, "info"); };
 
     function renderFileTree() {
         fileTreeDiv.innerHTML = "";
@@ -444,15 +515,18 @@
         editor.value = virtualFs[p].content;
         curFileSpan.innerText = p;
         renderFileTree();
+        addConsoleLog(`打开文件: ${p}`, "info");
     }
     function saveCurrent() {
         if (currentFile && virtualFs[currentFile]) {
             virtualFs[currentFile].content = editor.value;
             addFeedbackMsg(`💾 已保存 ${currentFile}`);
+            addConsoleLog(`保存文件: ${currentFile}`, "success");
             renderFileTree();
         } else if (currentFile && !virtualFs[currentFile]) {
             virtualFs[currentFile] = { content: editor.value };
             addFeedbackMsg(`📄 创建并保存 ${currentFile}`);
+            addConsoleLog(`创建并保存: ${currentFile}`, "success");
             renderFileTree();
         } else {
             addFeedbackMsg("请先选择或创建文件");
@@ -469,6 +543,7 @@
             }
             renderFileTree();
             addFeedbackMsg(`🗑️ 已删除 ${p}`);
+            addConsoleLog(`删除文件: ${p}`, "warn");
         }
     }
     function newFile() {
@@ -479,6 +554,7 @@
             editor.value = "";
             renderFileTree();
             addFeedbackMsg(`📄 创建 ${name}`);
+            addConsoleLog(`创建新文件: ${name}`, "success");
         } else if (name) alert("文件已存在");
     }
     newFileBtn.onclick = newFile;
@@ -491,6 +567,7 @@
             a.download = currentFile;
             a.click();
             URL.revokeObjectURL(a.href);
+            addConsoleLog(`下载文件: ${currentFile}`, "info");
         } else {
             addFeedbackMsg("没有可下载的文件");
         }
@@ -501,6 +578,7 @@
             let content = virtualFs[currentFile].content;
             previewFrame.srcdoc = content;
             previewModal.classList.remove("hidden");
+            addConsoleLog(`手动预览: ${currentFile}`, "info");
         } else {
             addFeedbackMsg("没有可预览的文件");
         }
@@ -532,17 +610,21 @@
     function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]); }
 
     async function executeFileOperation(operation, path, content = null) {
+        const start = Date.now();
+        addConsoleLog(`执行文件操作: ${operation} ${path}`, "info");
         try {
             if (operation === "create") {
                 if (virtualFs[path]) return `❌ 创建失败: 文件 ${path} 已存在`;
                 virtualFs[path] = { content: content || "" };
                 renderFileTree();
+                addConsoleLog(`文件创建成功: ${path} (耗时 ${Date.now()-start}ms)`, "success");
                 return `✅ 文件已创建: ${path}`;
             } else if (operation === "update") {
                 if (!virtualFs[path]) return `❌ 更新失败: 文件 ${path} 不存在`;
                 virtualFs[path].content = content;
                 if (currentFile === path) editor.value = content;
                 renderFileTree();
+                addConsoleLog(`文件更新成功: ${path} (耗时 ${Date.now()-start}ms)`, "success");
                 return `✅ 文件已更新: ${path}`;
             } else if (operation === "delete") {
                 if (!virtualFs[path]) return `❌ 删除失败: 文件 ${path} 不存在`;
@@ -554,15 +636,19 @@
                     else editor.value = "";
                 }
                 renderFileTree();
+                addConsoleLog(`文件删除成功: ${path} (耗时 ${Date.now()-start}ms)`, "warn");
                 return `✅ 文件已删除: ${path}`;
             }
         } catch (e) {
+            addConsoleLog(`文件操作异常: ${e.message}`, "error");
             return `❌ 操作异常: ${e.message}`;
         }
         return "未知操作";
     }
 
     async function checkCode(code, language = "javascript") {
+        const start = Date.now();
+        addConsoleLog(`代码检查: ${language} (长度 ${code.length})`, "info");
         let issues = [];
         if (language === "javascript" || language === "js") {
             if (code.includes("console.log")) issues.push("包含 console.log");
@@ -570,34 +656,56 @@
             if (code.includes("eval(")) issues.push("使用了 eval");
         }
         if (code.length > 10000) issues.push("代码超过 10000 字符");
-        if (issues.length === 0) return "✅ 代码检查通过";
-        return `⚠️ ${issues.join("; ")}`;
+        const result = issues.length === 0 ? "✅ 代码检查通过" : `⚠️ ${issues.join("; ")}`;
+        addConsoleLog(`代码检查完成: ${result} (耗时 ${Date.now()-start}ms)`, issues.length ? "warn" : "success");
+        return result;
     }
 
     async function httpRequest(url, method = "GET", body = null) {
+        const start = Date.now();
+        addConsoleLog(`HTTP请求: ${method} ${url}`, "info");
         try {
             let options = { method, headers: { "Content-Type": "application/json" } };
             if (body) options.body = JSON.stringify(body);
             let response = await fetch(url, options);
             let data = await response.text();
+            addConsoleLog(`HTTP响应: ${response.status} (耗时 ${Date.now()-start}ms)`, response.ok ? "success" : "error");
             return `HTTP ${response.status}: ${data.slice(0, 500)}${data.length > 500 ? "..." : ""}`;
         } catch (e) {
+            addConsoleLog(`HTTP请求失败: ${e.message}`, "error");
             return `❌ 请求失败: ${e.message}`;
         }
     }
 
-    function getCurrentTime() { return new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }); }
-    function calculate(expression) { try { let result = eval(expression); return `计算结果: ${expression} = ${result}`; } catch(e) { return `❌ 计算错误: ${e.message}`; } }
-    function encodeBase64(str) { return btoa(unescape(encodeURIComponent(str))); }
-    function decodeBase64(str) { try { return decodeURIComponent(escape(atob(str))); } catch(e) { return "解码失败"; } }
+    function getCurrentTime() { 
+        const t = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+        addConsoleLog(`获取时间: ${t}`, "info");
+        return t; 
+    }
+    function calculate(expression) { 
+        addConsoleLog(`计算表达式: ${expression}`, "info");
+        try { let result = eval(expression); addConsoleLog(`计算结果: ${result}`, "success"); return `计算结果: ${expression} = ${result}`; } 
+        catch(e) { addConsoleLog(`计算错误: ${e.message}`, "error"); return `❌ 计算错误: ${e.message}`; } 
+    }
+    function encodeBase64(str) { 
+        let r = btoa(unescape(encodeURIComponent(str)));
+        addConsoleLog(`Base64编码: ${str.substring(0,30)}... -> ${r.substring(0,30)}...`, "info");
+        return r;
+    }
+    function decodeBase64(str) { 
+        try { let r = decodeURIComponent(escape(atob(str))); addConsoleLog(`Base64解码成功`, "success"); return r; } 
+        catch(e) { addConsoleLog(`Base64解码失败: ${e.message}`, "error"); return "解码失败"; } 
+    }
     async function searchWeb(query) {
+        addConsoleLog(`搜索: ${query}`, "info");
         try {
             let response = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
             let data = await response.json();
             let results = data.RelatedTopics?.slice(0, 3).map(t => t.Text).filter(t => t) || [];
-            if (results.length === 0) return "未找到相关结果";
-            return "搜索结果:\n" + results.join("\n");
-        } catch (e) { return `搜索失败: ${e.message}`; }
+            let r = results.length === 0 ? "未找到相关结果" : "搜索结果:\n" + results.join("\n");
+            addConsoleLog(`搜索完成，找到 ${results.length} 条结果`, "success");
+            return r;
+        } catch (e) { addConsoleLog(`搜索失败: ${e.message}`, "error"); return `搜索失败: ${e.message}`; }
     }
 
     function renderMarkupTags(html) {
@@ -624,7 +732,7 @@
                 let cells = rowContent.replace(/<th>(.*?)<\/th>/gi, '<th>$1</th>').replace(/<td>(.*?)<\/td>/gi, '<td>$1</td>');
                 return `<tr>${cells}</tr>`;
             });
-            return `<table>${rows}</tr>`;
+            return `<table>${rows}</table>`;
         });
         return html;
     }
@@ -638,43 +746,47 @@
         displayHtml = displayHtml.replace(/<link>([^,]+),(.*?)<\/link>/g, `<a href="$1" target="_blank" style="color:#a5d296;">$2</a>`);
         displayHtml = displayHtml.replace(/<code-html>([\s\S]*?)<\/code-html>/g, `<pre><code>${escapeHtml("$1")}</code></pre>`);
         displayHtml = displayHtml.replace(/<code>([\s\S]*?)<\/code>/g, `<pre><code>${escapeHtml("$1")}</code></pre>`);
-        if (displayHtml.includes("<task-down>")) displayHtml = displayHtml.replace(/<task-down>/g, '<div class="task-done">✅ 任务完成</div>');
-        if (displayHtml.includes("<waiting>")) displayHtml = displayHtml.replace(/<waiting>/g, '<div class="waiting-pill">⏳ 等待用户回复</div>');
+        
+        const hasTaskDown = fullText.includes("<task-down>");
+        const hasWaiting = fullText.includes("<waiting>");
+        if (hasTaskDown) displayHtml = displayHtml.replace(/<task-down>/g, '<div class="task-done">✅ 任务完成</div>');
+        if (hasWaiting) displayHtml = displayHtml.replace(/<waiting>/g, '<div class="waiting-pill">⏳ 等待用户回复</div>');
         
         const htmlMatch = displayHtml.match(/<html>([\s\S]*?)<\/html>/);
         if (htmlMatch) {
             previewFrame.srcdoc = htmlMatch[1];
             previewModal.classList.remove("hidden");
             displayHtml = displayHtml.replace(/<html>[\s\S]*?<\/html>/, '<button onclick="document.getElementById(\'previewModal\').classList.remove(\'hidden\')" style="background:#f0f7ec; border:none; padding:4px 12px; border-radius:20px;">🌐 预览</button>');
+            addConsoleLog("HTML 预览已触发", "success");
         }
 
         const fileCreateRegex = /<file-create\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-create>/g;
         let m;
+        let anyFileOp = false;
         while ((m = fileCreateRegex.exec(fullText)) !== null) {
-            let path = m[1], content = m[2];
-            let result = await executeFileOperation("create", path, content);
+            anyFileOp = true;
+            let result = await executeFileOperation("create", m[1], m[2]);
             feedbacks.push(result);
             addFeedbackMsg(result);
         }
         const fileUpdateRegex = /<file-update\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-update>/g;
         while ((m = fileUpdateRegex.exec(fullText)) !== null) {
-            let path = m[1], content = m[2];
-            let result = await executeFileOperation("update", path, content);
+            anyFileOp = true;
+            let result = await executeFileOperation("update", m[1], m[2]);
             feedbacks.push(result);
             addFeedbackMsg(result);
         }
         const fileDeleteRegex = /<file-delete\s+path="([^"]+)"\s*\/>/g;
         while ((m = fileDeleteRegex.exec(fullText)) !== null) {
-            let path = m[1];
-            let result = await executeFileOperation("delete", path);
+            anyFileOp = true;
+            let result = await executeFileOperation("delete", m[1]);
             feedbacks.push(result);
             addFeedbackMsg(result);
         }
 
         const checkRegex = /<check-code\s+lang="([^"]+)"\s*>([\s\S]*?)<\/check-code>/g;
         while ((m = checkRegex.exec(fullText)) !== null) {
-            let lang = m[1], code = m[2];
-            let result = await checkCode(code, lang);
+            let result = await checkCode(m[2], m[1]);
             feedbacks.push(result);
             addFeedbackMsg(result);
             displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔍 ${escapeHtml(result)}</div>`);
@@ -682,10 +794,9 @@
 
         const httpRegex = /<http\s+url="([^"]+)"\s*(method="([^"]+)")?\s*(\s+body="([^"]*)")?\s*\/>/g;
         while ((m = httpRegex.exec(fullText)) !== null) {
-            let url = m[1], method = m[3] || "GET", body = m[5] || null;
-            let result = await httpRequest(url, method, body);
+            let result = await httpRequest(m[1], m[3] || "GET", m[5] || null);
             feedbacks.push(result);
-            addFeedbackMsg(`🌐 ${method} ${url}: ${result.slice(0, 100)}`);
+            addFeedbackMsg(`🌐 ${m[3] || "GET"} ${m[1]}: ${result.slice(0, 100)}`);
             displayHtml = displayHtml.replace(m[0], `<div class="thinking">🌐 ${escapeHtml(result)}</div>`);
         }
 
@@ -739,11 +850,14 @@
         displayHtml = displayHtml.replace(/<b64decode>[\s\S]*?<\/b64decode>/g, "");
         displayHtml = displayHtml.replace(/<search>[\s\S]*?<\/search>/g, "");
 
-        return { displayHtml, feedbacks, hasWaiting: fullText.includes("<waiting>") };
+        let hasOp = (anyFileOp || feedbacks.length > 0);
+        return { displayHtml, feedbacks, hasWaiting, hasTaskDown, hasOp };
     }
 
     async function streamDeepSeek(messages, onChunk) {
         if (!apiKey) throw new Error("请先设置 API Key");
+        const startTime = Date.now();
+        addConsoleLog(`调用API: ${selectedModel}`, "info");
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
@@ -751,12 +865,14 @@
         });
         if (!resp.ok) {
             let errText = await resp.text();
+            addConsoleLog(`API错误: ${resp.status} ${errText.slice(0,100)}`, "error");
             throw new Error(`API错误 ${resp.status}: ${errText.slice(0, 150)}`);
         }
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         let fullText = "";
+        let firstChunk = true;
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -766,18 +882,23 @@
             for (let line of lines) {
                 if (line.startsWith("data: ")) {
                     const data = line.slice(6);
-                    if (data === "[DONE]") return fullText;
+                    if (data === "[DONE]") {
+                        addConsoleLog(`API响应完成 (耗时 ${Date.now()-startTime}ms)`, "success");
+                        return fullText;
+                    }
                     try {
                         const parsed = JSON.parse(data);
                         const delta = parsed.choices[0]?.delta?.content;
                         if (delta) {
                             fullText += delta;
                             if (onChunk) onChunk(delta);
+                            if (firstChunk) { firstChunk = false; addConsoleLog(`收到首个响应块`, "info"); }
                         }
                     } catch(e) {}
                 }
             }
         }
+        addConsoleLog(`API响应完成 (耗时 ${Date.now()-startTime}ms)`, "success");
         return fullText;
     }
 
@@ -786,23 +907,44 @@
         agentActive = true;
         statusSpan.innerText = "🔵 运行中";
         addUserMsg(initialMsg);
+        addConsoleLog(`新任务: ${initialMsg.substring(0,100)}`, "info");
         
         conversationHistory = [
-            { role: "system", content: `你是 MuYanCoding，专业的 AI 编程Agent。绝对禁止使用 Markdown 语法直接回复用户，所有格式化必须用以下专用标签：
-<h1>到<h6> 标题，<bold>粗体</bold>，<italic>斜体</italic>，<ul><li>无序列表</li></ul>，<ol><li>有序列表</li></ol>，<quote>引用</quote>，<hr/> 分隔线，<table><tr><th>表头</th><tr><tr><td>单元格</td></tr>。
-文件操作：<file-create path="文件名">内容</file-create>，<file-update path="文件名">内容</file-update>，<file-delete path="文件名" />。
-代码检查：<check-code lang="语言">代码</check-code>。
-HTTP请求：<http url="..." method="GET|POST" body='{"key":"value"}' />。
-时间：<get-time/>，计算：<calc>表达式</calc>，Base64编解码：<b64encode>文本</b64encode>，<b64decode>编码</b64decode>，搜索：<search>关键词</search>。
-其他：<thinking>思考</thinking>，<highlight>高亮</highlight>，<link>url,文字</link>，<html>完整HTML</html>，<code-html>代码</code-html>，<code>代码</code>。
-任务完成输出 <task-down>，需要用户确认输出 <waiting>。
-每次只用一个工具标签，等待系统反馈再进行下一步。不要输出Markdown回复除非用户主动提出编写md文件。` },
+            { role: "system", content: `你是 MuYanCoding，专业的 AI 编程Agent。绝对禁止使用 Markdown 语法直接回复用户，所有回复必须且只能使用以下专用标签。每次回复只包含一个标签（除了可选的<thinking>外），不能输出任何自然语言解释。
+
+【格式强制】
+- 如果需要思考，先输出 <thinking>你的思考</thinking>，然后紧接着输出一个功能标签。
+- 功能标签（每次选一个）：
+  <file-create path="文件名">内容</file-create>
+  <file-update path="文件名">内容</file-update>
+  <file-delete path="文件名" />
+  <check-code lang="语言">代码</check-code>
+  <http url="..." method="GET|POST" body='{"key":"value"}' />
+  <get-time/>
+  <calc>表达式</calc>
+  <b64encode>文本</b64encode>
+  <b64decode>编码</b64decode>
+  <search>关键词</search>
+  <html>完整HTML</html>
+  <highlight>文本</highlight>
+  <link>url,文字</link>
+  <code-html>代码</code-html>
+  <code>代码</code>
+- 当任务完全完成时，必须输出 <task-down> （单独一个标签，不能和其他标签混合）。
+- 当需要用户输入或确认时，输出 <waiting> （单独一个标签）。
+- 不要输出任何其他文字，不要输出Markdown，不要输出解释。
+- 每次收到系统反馈后，根据反馈决定下一步动作。如果任务未完成，继续输出下一个标签；如果已完成，输出 <task-down> 结束。
+
+你现在的任务是根据用户的需求和系统反馈逐步工作。` },
             { role: "user", content: initialMsg }
         ];
 
         let step = 0;
-        const MAX_STEPS = 20;
+        const MAX_STEPS = 15;
         let waiting = false;
+        lastReplyHash = "";
+        consecutiveSameCount = 0;
+        noOperationCount = 0;
 
         while (agentActive && step < MAX_STEPS) {
             step++;
@@ -819,7 +961,20 @@ HTTP请求：<http url="..." method="GET|POST" body='{"key":"value"}' />。
                 
                 if (!agentActive) break;
                 
-                const { displayHtml, feedbacks, hasWaiting } = await parseAndExecuteTags(fullReply);
+                let replyHash = fullReply.substring(0, 200);
+                if (replyHash === lastReplyHash) {
+                    consecutiveSameCount++;
+                    if (consecutiveSameCount >= 2) {
+                        addFeedbackMsg("⚠️ 检测到重复输出，自动停止任务");
+                        addConsoleLog("检测到重复输出，强制停止", "error");
+                        break;
+                    }
+                } else {
+                    consecutiveSameCount = 0;
+                    lastReplyHash = replyHash;
+                }
+                
+                const { displayHtml, feedbacks, hasWaiting, hasTaskDown, hasOp } = await parseAndExecuteTags(fullReply);
                 agentMsgDiv.innerHTML = displayHtml;
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 
@@ -828,15 +983,26 @@ HTTP请求：<http url="..." method="GET|POST" body='{"key":"value"}' />。
                 if (feedbacks.length > 0) {
                     let feedbackMsg = "系统反馈:\n" + feedbacks.join("\n");
                     conversationHistory.push({ role: "system", content: feedbackMsg });
+                } else if (!hasTaskDown && !hasWaiting && step > 1) {
+                    noOperationCount++;
+                    if (noOperationCount >= 2) {
+                        addFeedbackMsg("⚠️ 连续无有效操作，自动停止");
+                        addConsoleLog("连续无有效操作，停止任务", "warn");
+                        break;
+                    }
+                } else {
+                    noOperationCount = 0;
                 }
                 
-                if (fullReply.includes("<task-down>")) {
+                if (hasTaskDown) {
                     addFeedbackMsg("🏁 任务完成");
+                    addConsoleLog("任务完成标记 <task-down> 触发", "success");
                     break;
                 }
                 if (hasWaiting) {
                     waiting = true;
                     statusSpan.innerText = "⏸️ 等待回复";
+                    addConsoleLog("等待用户回复 (<waiting>)", "info");
                     await new Promise((resolve) => { waitingResolver = resolve; });
                     waiting = false;
                     if (!agentActive) break;
@@ -845,15 +1011,18 @@ HTTP请求：<http url="..." method="GET|POST" body='{"key":"value"}' />。
                     if (userReply) {
                         conversationHistory.push({ role: "user", content: userReply });
                         addUserMsg(userReply);
+                        addConsoleLog(`用户回复: ${userReply.substring(0,80)}`, "info");
                     } else break;
                     statusSpan.innerText = "🔵 继续执行";
                 }
             } catch (err) {
                 addFeedbackMsg(`❌ 错误: ${err.message}`);
+                addConsoleLog(`执行错误: ${err.message}`, "error");
                 break;
             }
         }
         if (step >= MAX_STEPS) addFeedbackMsg("⚠️ 达到最大步骤限制，任务自动停止");
+        addConsoleLog(`任务结束，共执行 ${step} 步`, "info");
         agentActive = false;
         statusSpan.innerText = "⚪ 空闲";
         if (waitingResolver) waitingResolver();
@@ -873,6 +1042,7 @@ HTTP请求：<http url="..." method="GET|POST" body='{"key":"value"}' />。
             if (waitingResolver) waitingResolver();
             waitingResolver = null;
             addFeedbackMsg("⏹️ 已停止");
+            addConsoleLog("用户手动停止任务", "warn");
             statusSpan.innerText = "⚪ 已停止";
         }
     };
@@ -894,6 +1064,7 @@ HTTP请求：<http url="..." method="GET|POST" body='{"key":"value"}' />。
         } else if (!statusSpan.innerText.includes("等待回复") && document.getElementById("waitBox")) document.getElementById("waitBox")?.remove();
     }, 200);
     addFeedbackMsg("欢迎使用MuYanCoding｜专业的编程Agent");
+    addConsoleLog("MuYanCoding 已启动，控制台就绪", "success");
 </script>
 </body>
 </html>
