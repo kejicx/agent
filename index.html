@@ -83,6 +83,26 @@
             color: transparent;
             letter-spacing: -0.3px;
         }
+        .mode-switch {
+            display: flex;
+            background: #1a1a1f;
+            border-radius: 40px;
+            padding: 2px;
+            border: 1px solid var(--border);
+            margin-left: 16px;
+        }
+        .mode-option {
+            padding: 4px 12px;
+            font-size: 12px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--text-tertiary);
+        }
+        .mode-option.active {
+            background: var(--accent);
+            color: #0f0f12;
+        }
         .api-panel {
             display: flex;
             gap: 12px;
@@ -139,10 +159,31 @@
             color: var(--text-secondary);
             border: 1px solid var(--border);
         }
+        .token-display {
+            background: #1a1a1f;
+            padding: 4px 10px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
         .main-layout {
             display: flex;
             flex: 1;
             overflow: hidden;
+        }
+        .workspace-area {
+            display: flex;
+            transition: width 0.2s ease, opacity 0.2s;
+            width: auto;
+            flex: 1;
+        }
+        .workspace-area.hidden {
+            width: 0;
+            flex: 0;
+            overflow: hidden;
+            opacity: 0;
         }
         .sidebar {
             width: 280px;
@@ -151,6 +192,26 @@
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+        }
+        .center-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-editor);
+            min-width: 0;
+        }
+        .right-panel {
+            width: 380px;
+            background: var(--bg-chat);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: flex 0.2s;
+        }
+        .main-layout:has(.workspace-area.hidden) .right-panel {
+            flex: 1;
+            width: auto;
         }
         .file-header {
             padding: 12px 16px;
@@ -246,13 +307,6 @@
         .item-actions button:hover {
             color: var(--accent);
         }
-        .center-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: var(--bg-editor);
-            min-width: 0;
-        }
         .editor-toolbar {
             padding: 8px 16px;
             background: var(--bg-sidebar);
@@ -273,14 +327,6 @@
             resize: none;
             outline: none;
             color: var(--text-primary);
-        }
-        .right-panel {
-            width: 380px;
-            background: var(--bg-chat);
-            border-left: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
         }
         .messages {
             flex: 1;
@@ -530,15 +576,6 @@
             background: var(--border-light);
             border-radius: 3px;
         }
-        .rename-input {
-            background: #1a1a1f;
-            border: 1px solid var(--accent);
-            border-radius: var(--radius-sm);
-            padding: 2px 6px;
-            color: white;
-            font-size: 12px;
-            width: 120px;
-        }
     </style>
 </head>
 <body>
@@ -547,6 +584,10 @@
         <div class="logo-area">
             <span class="logo-icon">∞</span>
             <span class="logo-text">MuYanCoding</span>
+            <div class="mode-switch" id="modeSwitch">
+                <span class="mode-option active" data-mode="coding">CodingAgent</span>
+                <span class="mode-option" data-mode="agent">Agent</span>
+            </div>
         </div>
         <div class="api-panel">
             <input type="text" id="apiKey" placeholder="DeepSeek API Key" style="width: 200px;">
@@ -558,30 +599,34 @@
             </select>
             <button id="saveKeyBtn" class="primary">保存</button>
             <button id="stopBtn" class="danger">停止</button>
+            <button id="clearMemoryBtn">🧹 清除记忆</button>
+            <div class="token-display" id="tokenDisplay">📊 0 tokens</div>
             <div class="status-badge" id="status">⚪ 空闲</div>
         </div>
     </div>
     <div class="main-layout">
-        <div class="sidebar">
-            <div class="file-header">
-                <span>📁 资源管理器</span>
-                <div class="file-header-actions">
-                    <button id="newFileBtn" title="新建文件">📄</button>
-                    <button id="newFolderBtn" title="新建文件夹">📁</button>
+        <div class="workspace-area" id="workspaceArea">
+            <div class="sidebar">
+                <div class="file-header">
+                    <span>📁 资源管理器</span>
+                    <div class="file-header-actions">
+                        <button id="newFileBtn" title="新建文件">📄</button>
+                        <button id="newFolderBtn" title="新建文件夹">📁</button>
+                    </div>
                 </div>
+                <div class="file-tree" id="fileTree"></div>
             </div>
-            <div class="file-tree" id="fileTree"></div>
-        </div>
-        <div class="center-area">
-            <div class="editor-toolbar">
-                <span id="curFile">未选择文件</span>
-                <div style="display: flex; gap: 8px;">
-                    <button id="saveFileBtn">💾 保存</button>
-                    <button id="downloadBtn">📥 下载</button>
-                    <button id="manualPreviewBtn" class="preview-btn hidden">🌐 预览</button>
+            <div class="center-area">
+                <div class="editor-toolbar">
+                    <span id="curFile">未选择文件</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="saveFileBtn">💾 保存</button>
+                        <button id="downloadBtn">📥 下载</button>
+                        <button id="manualPreviewBtn" class="preview-btn hidden">🌐 预览</button>
+                    </div>
                 </div>
+                <textarea id="editor" placeholder="编辑代码... MuYanCoding 将自动处理文件操作"></textarea>
             </div>
-            <textarea id="editor" placeholder="编辑代码... MuYanCoding 将自动处理文件操作"></textarea>
         </div>
         <div class="right-panel">
             <div class="messages" id="messages"></div>
@@ -615,19 +660,13 @@
         let agentActive = false;
         let waitingResolver = null;
         let conversationHistory = [];
+        let totalTokensUsed = 0;
         let expandedFolders = new Set(); 
+        let currentMode = "coding"; 
 
-        function normalizePath(path) {
-            return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+/, '');
-        }
-        function getDirPath(filePath) {
-            let lastSlash = filePath.lastIndexOf('/');
-            return lastSlash === -1 ? '' : filePath.substring(0, lastSlash);
-        }
-        function getBaseName(filePath) {
-            let parts = filePath.split('/');
-            return parts[parts.length-1];
-        }
+        function normalizePath(path) { return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+/, ''); }
+        function getDirPath(filePath) { let lastSlash = filePath.lastIndexOf('/'); return lastSlash === -1 ? '' : filePath.substring(0, lastSlash); }
+        function getBaseName(filePath) { let parts = filePath.split('/'); return parts[parts.length-1]; }
         function ensureDirExists(dirPath) {
             if (!dirPath) return true;
             const parts = dirPath.split('/');
@@ -635,11 +674,8 @@
             for (let part of parts) {
                 if (!part) continue;
                 current = current ? current + '/' + part : part;
-                if (!virtualFs[current]) {
-                    virtualFs[current] = { type: 'folder', children: {}, content: null };
-                } else if (virtualFs[current].type !== 'folder') {
-                    return false;
-                }
+                if (!virtualFs[current]) virtualFs[current] = { type: 'folder', children: {}, content: null };
+                else if (virtualFs[current].type !== 'folder') return false;
             }
             return true;
         }
@@ -662,40 +698,17 @@
                     const part = parts[i];
                     const isLast = i === parts.length-1;
                     if (!current.children[part]) {
-                        current.children[part] = { 
-                            name: part, 
-                            children: {}, 
-                            type: isLast ? virtualFs[path].type : 'folder', 
-                            fullPath: parts.slice(0,i+1).join('/'), 
-                            isVirtual: true,
-                            expanded: false
-                        };
+                        current.children[part] = { name: part, children: {}, type: isLast ? virtualFs[path].type : 'folder', fullPath: parts.slice(0,i+1).join('/'), isVirtual: true, expanded: false };
                     }
-                    if (!isLast) {
-                        current = current.children[part];
-                    } else {
-                        current.children[part].itemData = virtualFs[path];
-                        current.children[part].fullPath = path;
-                    }
+                    if (!isLast) current = current.children[part];
+                    else { current.children[part].itemData = virtualFs[path]; current.children[part].fullPath = path; }
                 }
             }
-            function setExpandedFlag(node) {
-                for (let key in node.children) {
-                    const child = node.children[key];
-                    if (child.type === 'folder') {
-                        if (expandedFolders.has(child.fullPath)) {
-                            child.expanded = true;
-                        } else {
-                            child.expanded = false;
-                        }
-                        setExpandedFlag(child);
-                    }
-                }
-            }
+            function setExpandedFlag(node) { for (let key in node.children) { const child = node.children[key]; if (child.type === 'folder') { if (expandedFolders.has(child.fullPath)) child.expanded = true; else child.expanded = false; setExpandedFlag(child); } } }
             setExpandedFlag(tree);
             return tree;
         }
-        function renderTree(node, container, level = 0) {
+        function renderTree(node, container) {
             const sorted = Object.keys(node.children).sort((a,b) => {
                 const aIsFolder = node.children[a].type === 'folder';
                 const bIsFolder = node.children[b].type === 'folder';
@@ -704,509 +717,263 @@
             });
             for (let name of sorted) {
                 const child = node.children[name];
-                const li = document.createElement('li');
-                li.className = 'tree-node';
-                const div = document.createElement('div');
-                div.className = 'tree-item' + (currentFilePath === child.fullPath && child.type === 'file' ? ' active' : '');
-                div.dataset.path = child.fullPath;
-                div.dataset.type = child.type;
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'tree-item-content';
+                const li = document.createElement('li'); li.className = 'tree-node';
+                const div = document.createElement('div'); div.className = 'tree-item' + (currentFilePath === child.fullPath && child.type === 'file' ? ' active' : '');
+                const contentDiv = document.createElement('div'); contentDiv.className = 'tree-item-content';
                 if (child.type === 'folder') {
-                    const toggleSpan = document.createElement('span');
-                    toggleSpan.className = 'folder-toggle';
-                    toggleSpan.textContent = child.expanded ? '▼' : '▶';
-                    toggleSpan.onclick = (e) => {
-                        e.stopPropagation();
-                        if (child.expanded) {
-                            expandedFolders.delete(child.fullPath);
-                        } else {
-                            expandedFolders.add(child.fullPath);
-                        }
-                        renderFullTree();
-                    };
+                    const toggleSpan = document.createElement('span'); toggleSpan.className = 'folder-toggle'; toggleSpan.textContent = child.expanded ? '▼' : '▶';
+                    toggleSpan.onclick = (e) => { e.stopPropagation(); if (child.expanded) expandedFolders.delete(child.fullPath); else expandedFolders.add(child.fullPath); renderFullTree(); };
                     contentDiv.appendChild(toggleSpan);
-                    const iconSpan = document.createElement('span');
-                    iconSpan.className = 'item-icon';
-                    iconSpan.textContent = child.expanded ? '📂' : '📁';
+                    const iconSpan = document.createElement('span'); iconSpan.className = 'item-icon'; iconSpan.textContent = child.expanded ? '📂' : '📁';
                     contentDiv.appendChild(iconSpan);
                 } else {
-                    const toggleSpan = document.createElement('span');
-                    toggleSpan.className = 'folder-toggle';
-                    toggleSpan.textContent = '  ';
+                    const toggleSpan = document.createElement('span'); toggleSpan.className = 'folder-toggle'; toggleSpan.textContent = '  ';
                     contentDiv.appendChild(toggleSpan);
-                    const iconSpan = document.createElement('span');
-                    iconSpan.className = 'item-icon';
-                    iconSpan.textContent = '📄';
+                    const iconSpan = document.createElement('span'); iconSpan.className = 'item-icon'; iconSpan.textContent = '📄';
                     contentDiv.appendChild(iconSpan);
                 }
-                const nameSpan = document.createElement('span');
-                nameSpan.textContent = name;
+                const nameSpan = document.createElement('span'); nameSpan.textContent = name;
                 contentDiv.appendChild(nameSpan);
                 div.appendChild(contentDiv);
-                const actions = document.createElement('div');
-                actions.className = 'item-actions';
+                const actions = document.createElement('div'); actions.className = 'item-actions';
                 if (child.type === 'file') {
-                    const renameBtn = document.createElement('button');
-                    renameBtn.textContent = '✏️';
-                    renameBtn.title = '重命名';
-                    renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); };
-                    actions.appendChild(renameBtn);
-                    const delBtn = document.createElement('button');
-                    delBtn.textContent = '🗑️';
-                    delBtn.title = '删除';
-                    delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); };
-                    actions.appendChild(delBtn);
+                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✏️'; renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); }; actions.appendChild(renameBtn);
+                    const delBtn = document.createElement('button'); delBtn.textContent = '🗑️'; delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); }; actions.appendChild(delBtn);
                 } else {
-                    const newFileBtn = document.createElement('button');
-                    newFileBtn.textContent = '📄';
-                    newFileBtn.title = '新建文件';
-                    newFileBtn.onclick = (e) => { e.stopPropagation(); createFileInFolder(child.fullPath); };
-                    actions.appendChild(newFileBtn);
-                    const newFolderBtn = document.createElement('button');
-                    newFolderBtn.textContent = '📁';
-                    newFolderBtn.title = '新建文件夹';
-                    newFolderBtn.onclick = (e) => { e.stopPropagation(); createFolderInFolder(child.fullPath); };
-                    actions.appendChild(newFolderBtn);
-                    const renameBtn = document.createElement('button');
-                    renameBtn.textContent = '✏️';
-                    renameBtn.title = '重命名';
-                    renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); };
-                    actions.appendChild(renameBtn);
-                    const delBtn = document.createElement('button');
-                    delBtn.textContent = '🗑️';
-                    delBtn.title = '删除';
-                    delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); };
-                    actions.appendChild(delBtn);
+                    const newFileBtn = document.createElement('button'); newFileBtn.textContent = '📄'; newFileBtn.onclick = (e) => { e.stopPropagation(); createFileInFolder(child.fullPath); }; actions.appendChild(newFileBtn);
+                    const newFolderBtn = document.createElement('button'); newFolderBtn.textContent = '📁'; newFolderBtn.onclick = (e) => { e.stopPropagation(); createFolderInFolder(child.fullPath); }; actions.appendChild(newFolderBtn);
+                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✏️'; renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); }; actions.appendChild(renameBtn);
+                    const delBtn = document.createElement('button'); delBtn.textContent = '🗑️'; delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); }; actions.appendChild(delBtn);
                 }
                 div.appendChild(actions);
                 div.onclick = (e) => { if (e.target.closest('.item-actions')) return; if (child.type === 'file') openFile(child.fullPath); };
                 li.appendChild(div);
-                if (child.type === 'folder' && child.expanded && child.children) {
-                    const childUl = document.createElement('ul');
-                    childUl.className = 'tree-node-children';
-                    renderTree(child, childUl, level+1);
-                    li.appendChild(childUl);
-                }
+                if (child.type === 'folder' && child.expanded && child.children) { const childUl = document.createElement('ul'); childUl.className = 'tree-node-children'; renderTree(child, childUl); li.appendChild(childUl); }
                 container.appendChild(li);
             }
         }
-        function renderFullTree() {
-            const treeContainer = document.getElementById('fileTree');
-            if (!treeContainer) return;
-            treeContainer.innerHTML = '';
-            const root = buildTree();
-            const rootUl = document.createElement('ul');
-            rootUl.className = 'tree-node';
-            renderTree(root, rootUl);
-            treeContainer.appendChild(rootUl);
-        }
-        function openFile(path) {
-            if (virtualFs[path] && virtualFs[path].type === 'file') {
-                currentFilePath = path;
-                document.getElementById('editor').value = virtualFs[path].content || '';
-                document.getElementById('curFile').innerText = path;
-                renderFullTree();
-                const previewBtn = document.getElementById('manualPreviewBtn');
-                if (path.endsWith('.html') || path.endsWith('.htm')) previewBtn.classList.remove('hidden');
-                else previewBtn.classList.add('hidden');
-                addConsoleLog(`打开文件: ${path}`, 'info');
-            }
-        }
-        function saveCurrentFile() {
-            if (!currentFilePath) { addFeedbackMsg('请先选择文件'); return; }
-            const content = document.getElementById('editor').value;
-            if (virtualFs[currentFilePath]) {
-                virtualFs[currentFilePath].content = content;
-                virtualFs[currentFilePath].mtime = Date.now();
-                addFeedbackMsg(`💾 已保存 ${currentFilePath}`);
-                addConsoleLog(`保存文件: ${currentFilePath}`, 'success');
-                renderFullTree();
-            } else {
-                addFeedbackMsg('文件不存在，请重新选择');
-            }
-        }
-        function createFile(path, content = '') {
-            const normalized = normalizePath(path);
-            if (virtualFs[normalized]) return false;
-            const dir = getDirPath(normalized);
-            if (dir && !virtualFs[dir]) ensureDirExists(dir);
-            virtualFs[normalized] = { type: 'file', content: content, mtime: Date.now() };
-            renderFullTree();
-            openFile(normalized);
-            addFeedbackMsg(`📄 创建文件: ${normalized}`);
-            return true;
-        }
-        function createFolder(path) {
-            const normalized = normalizePath(path);
-            if (virtualFs[normalized]) return false;
-            const dir = getDirPath(normalized);
-            if (dir && !virtualFs[dir]) ensureDirExists(dir);
-            virtualFs[normalized] = { type: 'folder', children: {}, mtime: Date.now() };
-            renderFullTree();
-            addFeedbackMsg(`📁 创建文件夹: ${normalized}`);
-            return true;
-        }
-        function createFileInFolder(folderPath) {
-            let name = prompt('文件名:', '新文件.txt');
-            if (!name) return;
-            if (name.includes('/') || name.includes('\\')) { alert('文件名不能包含路径分隔符'); return; }
-            const newPath = folderPath ? folderPath + '/' + name : name;
-            createFile(newPath, '');
-        }
-        function createFolderInFolder(folderPath) {
-            let name = prompt('文件夹名:', '新文件夹');
-            if (!name) return;
-            if (name.includes('/') || name.includes('\\')) { alert('文件夹名不能包含路径分隔符'); return; }
-            const newPath = folderPath ? folderPath + '/' + name : name;
-            createFolder(newPath);
-        }
-        function renameNode(oldPath, type) {
-            let newBase = prompt(`重命名 ${getBaseName(oldPath)}`, getBaseName(oldPath));
-            if (!newBase || newBase === getBaseName(oldPath)) return;
-            if (newBase.includes('/') || newBase.includes('\\')) { alert('名称不能包含路径分隔符'); return; }
-            const dir = getDirPath(oldPath);
-            const newPath = dir ? dir + '/' + newBase : newBase;
-            if (virtualFs[newPath]) { alert('目标已存在'); return; }
-            if (type === 'file') {
-                virtualFs[newPath] = { ...virtualFs[oldPath], type: 'file' };
-                delete virtualFs[oldPath];
-                if (currentFilePath === oldPath) {
-                    currentFilePath = newPath;
-                    document.getElementById('editor').value = virtualFs[newPath].content || '';
-                    document.getElementById('curFile').innerText = newPath;
-                }
-            } else {
-                const childrenToMove = Object.keys(virtualFs).filter(p => p.startsWith(oldPath + '/') || p === oldPath);
-                for (let child of childrenToMove) {
-                    const relative = child.substring(oldPath.length);
-                    const newChildPath = newPath + relative;
-                    virtualFs[newChildPath] = virtualFs[child];
-                    delete virtualFs[child];
-                }
-                virtualFs[newPath] = { type: 'folder', mtime: Date.now() };
-                if (currentFilePath && currentFilePath.startsWith(oldPath)) {
-                    currentFilePath = newPath + currentFilePath.substring(oldPath.length);
-                    if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || '';
-                    document.getElementById('curFile').innerText = currentFilePath;
-                }
-                if (expandedFolders.has(oldPath)) {
-                    expandedFolders.delete(oldPath);
-                    expandedFolders.add(newPath);
-                }
-                delete virtualFs[oldPath];
-            }
-            renderFullTree();
-            addFeedbackMsg(`✏️ 已重命名: ${oldPath} → ${newPath}`);
-        }
-        function deleteNode(path) {
-            if (!confirm(`确定删除 ${path} 吗？`)) return;
-            const toDelete = Object.keys(virtualFs).filter(p => p === path || p.startsWith(path + '/'));
-            for (let p of toDelete) {
-                if (expandedFolders.has(p)) expandedFolders.delete(p);
-                delete virtualFs[p];
-            }
-            if (currentFilePath && (currentFilePath === path || currentFilePath.startsWith(path + '/'))) {
-                currentFilePath = null;
-                document.getElementById('editor').value = '';
-                document.getElementById('curFile').innerText = '未选择文件';
-                document.getElementById('manualPreviewBtn').classList.add('hidden');
-            }
-            renderFullTree();
-            addFeedbackMsg(`🗑️ 已删除: ${path}`);
-        }
-        function moveNode(sourcePath, targetPath) {
-            const srcNorm = normalizePath(sourcePath);
-            const tgtNorm = normalizePath(targetPath);
-            if (!virtualFs[srcNorm]) return `❌ 源路径不存在: ${srcNorm}`;
-            if (virtualFs[tgtNorm]) return `❌ 目标路径已存在: ${tgtNorm}`;
-            if (srcNorm === tgtNorm) return `❌ 源路径和目标路径相同`;
-            if (tgtNorm.startsWith(srcNorm + '/')) return `❌ 不能将文件夹移动到自身内部`;
-            const targetDir = getDirPath(tgtNorm);
-            if (targetDir && !virtualFs[targetDir]) ensureDirExists(targetDir);
-            const type = virtualFs[srcNorm].type;
-            if (type === 'file') {
-                virtualFs[tgtNorm] = { ...virtualFs[srcNorm], type: 'file' };
-                delete virtualFs[srcNorm];
-                if (currentFilePath === srcNorm) {
-                    currentFilePath = tgtNorm;
-                    document.getElementById('editor').value = virtualFs[tgtNorm].content || '';
-                    document.getElementById('curFile').innerText = tgtNorm;
-                }
-            } else {
-                const childrenToMove = Object.keys(virtualFs).filter(p => p === srcNorm || p.startsWith(srcNorm + '/'));
-                for (let child of childrenToMove) {
-                    const relative = child.substring(srcNorm.length);
-                    const newChildPath = tgtNorm + relative;
-                    virtualFs[newChildPath] = virtualFs[child];
-                    delete virtualFs[child];
-                }
-                if (expandedFolders.has(srcNorm)) {
-                    expandedFolders.delete(srcNorm);
-                    expandedFolders.add(tgtNorm);
-                }
-                if (currentFilePath && currentFilePath.startsWith(srcNorm)) {
-                    currentFilePath = tgtNorm + currentFilePath.substring(srcNorm.length);
-                    if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || '';
-                    document.getElementById('curFile').innerText = currentFilePath;
-                }
-            }
-            renderFullTree();
-            return `✅ 已移动: ${srcNorm} → ${tgtNorm}`;
-        }
-        function downloadCurrentFile() {
-            if (!currentFilePath) { addFeedbackMsg('无可下载文件'); return; }
-            const content = virtualFs[currentFilePath]?.content || '';
-            const blob = new Blob([content], {type: 'text/plain'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = getBaseName(currentFilePath);
-            a.click();
-            URL.revokeObjectURL(a.href);
-            addConsoleLog(`下载文件: ${currentFilePath}`, 'info');
-        }
+        function renderFullTree() { const container = document.getElementById('fileTree'); if (!container) return; container.innerHTML = ''; const root = buildTree(); const rootUl = document.createElement('ul'); rootUl.className = 'tree-node'; renderTree(root, rootUl); container.appendChild(rootUl); }
+        function openFile(path) { if (virtualFs[path] && virtualFs[path].type === 'file') { currentFilePath = path; document.getElementById('editor').value = virtualFs[path].content || ''; document.getElementById('curFile').innerText = path; renderFullTree(); const previewBtn = document.getElementById('manualPreviewBtn'); if (path.endsWith('.html') || path.endsWith('.htm')) previewBtn.classList.remove('hidden'); else previewBtn.classList.add('hidden'); } }
+        function saveCurrentFile() { if (!currentFilePath) { addFeedbackMsg('请先选择文件'); return; } const content = document.getElementById('editor').value; if (virtualFs[currentFilePath]) { virtualFs[currentFilePath].content = content; virtualFs[currentFilePath].mtime = Date.now(); addFeedbackMsg(`💾 已保存 ${currentFilePath}`); renderFullTree(); } else addFeedbackMsg('文件不存在'); }
+        function createFile(path, content = '') { const normalized = normalizePath(path); if (virtualFs[normalized]) return false; const dir = getDirPath(normalized); if (dir && !virtualFs[dir]) ensureDirExists(dir); virtualFs[normalized] = { type: 'file', content: content, mtime: Date.now() }; renderFullTree(); openFile(normalized); addFeedbackMsg(`📄 创建文件: ${normalized}`); return true; }
+        function createFolder(path) { const normalized = normalizePath(path); if (virtualFs[normalized]) return false; const dir = getDirPath(normalized); if (dir && !virtualFs[dir]) ensureDirExists(dir); virtualFs[normalized] = { type: 'folder', children: {}, mtime: Date.now() }; renderFullTree(); addFeedbackMsg(`📁 创建文件夹: ${normalized}`); return true; }
+        function createFileInFolder(folderPath) { let name = prompt('文件名:', '新文件.txt'); if (!name) return; if (name.includes('/') || name.includes('\\')) { alert('文件名不能包含路径分隔符'); return; } const newPath = folderPath ? folderPath + '/' + name : name; createFile(newPath, ''); }
+        function createFolderInFolder(folderPath) { let name = prompt('文件夹名:', '新文件夹'); if (!name) return; if (name.includes('/') || name.includes('\\')) { alert('文件夹名不能包含路径分隔符'); return; } const newPath = folderPath ? folderPath + '/' + name : name; createFolder(newPath); }
+        function renameNode(oldPath, type) { let newBase = prompt(`重命名 ${getBaseName(oldPath)}`, getBaseName(oldPath)); if (!newBase || newBase === getBaseName(oldPath)) return; if (newBase.includes('/') || newBase.includes('\\')) { alert('名称不能包含路径分隔符'); return; } const dir = getDirPath(oldPath); const newPath = dir ? dir + '/' + newBase : newBase; if (virtualFs[newPath]) { alert('目标已存在'); return; } if (type === 'file') { virtualFs[newPath] = { ...virtualFs[oldPath], type: 'file' }; delete virtualFs[oldPath]; if (currentFilePath === oldPath) { currentFilePath = newPath; document.getElementById('editor').value = virtualFs[newPath].content || ''; document.getElementById('curFile').innerText = newPath; } } else { const childrenToMove = Object.keys(virtualFs).filter(p => p.startsWith(oldPath + '/') || p === oldPath); for (let child of childrenToMove) { const relative = child.substring(oldPath.length); const newChildPath = newPath + relative; virtualFs[newChildPath] = virtualFs[child]; delete virtualFs[child]; } virtualFs[newPath] = { type: 'folder', mtime: Date.now() }; if (currentFilePath && currentFilePath.startsWith(oldPath)) { currentFilePath = newPath + currentFilePath.substring(oldPath.length); if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || ''; document.getElementById('curFile').innerText = currentFilePath; } if (expandedFolders.has(oldPath)) { expandedFolders.delete(oldPath); expandedFolders.add(newPath); } delete virtualFs[oldPath]; } renderFullTree(); addFeedbackMsg(`✏️ 已重命名: ${oldPath} → ${newPath}`); }
+        function deleteNode(path) { if (!confirm(`确定删除 ${path} 吗？`)) return; const toDelete = Object.keys(virtualFs).filter(p => p === path || p.startsWith(path + '/')); for (let p of toDelete) { if (expandedFolders.has(p)) expandedFolders.delete(p); delete virtualFs[p]; } if (currentFilePath && (currentFilePath === path || currentFilePath.startsWith(path + '/'))) { currentFilePath = null; document.getElementById('editor').value = ''; document.getElementById('curFile').innerText = '未选择文件'; document.getElementById('manualPreviewBtn').classList.add('hidden'); } renderFullTree(); addFeedbackMsg(`🗑️ 已删除: ${path}`); }
+        function moveNode(sourcePath, targetPath) { const srcNorm = normalizePath(sourcePath); const tgtNorm = normalizePath(targetPath); if (!virtualFs[srcNorm]) return `❌ 源路径不存在: ${srcNorm}`; if (virtualFs[tgtNorm]) return `❌ 目标路径已存在: ${tgtNorm}`; if (srcNorm === tgtNorm) return `❌ 路径相同`; if (tgtNorm.startsWith(srcNorm + '/')) return `❌ 不能移动到自身内部`; const targetDir = getDirPath(tgtNorm); if (targetDir && !virtualFs[targetDir]) ensureDirExists(targetDir); const type = virtualFs[srcNorm].type; if (type === 'file') { virtualFs[tgtNorm] = { ...virtualFs[srcNorm], type: 'file' }; delete virtualFs[srcNorm]; if (currentFilePath === srcNorm) { currentFilePath = tgtNorm; document.getElementById('editor').value = virtualFs[tgtNorm].content || ''; document.getElementById('curFile').innerText = tgtNorm; } } else { const childrenToMove = Object.keys(virtualFs).filter(p => p === srcNorm || p.startsWith(srcNorm + '/')); for (let child of childrenToMove) { const relative = child.substring(srcNorm.length); const newChildPath = tgtNorm + relative; virtualFs[newChildPath] = virtualFs[child]; delete virtualFs[child]; } if (expandedFolders.has(srcNorm)) { expandedFolders.delete(srcNorm); expandedFolders.add(tgtNorm); } if (currentFilePath && currentFilePath.startsWith(srcNorm)) { currentFilePath = tgtNorm + currentFilePath.substring(srcNorm.length); if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || ''; document.getElementById('curFile').innerText = currentFilePath; } } renderFullTree(); return `✅ 已移动: ${srcNorm} → ${tgtNorm}`; }
+        function readFileContent(path) { const norm = normalizePath(path); if (!virtualFs[norm]) return `❌ 文件不存在: ${norm}`; if (virtualFs[norm].type !== 'file') return `❌ 不是文件`; const content = virtualFs[norm].content || ''; const preview = content.length > 2000 ? content.substring(0,2000)+'\n...(截断)' : content; return `✅ 文件 ${norm} 内容:\n${preview}`; }
+        function searchFilesByKeyword(keyword) { if (!keyword.trim()) return `❌ 关键词无效`; const kw = keyword.toLowerCase(); const matches = []; for (let path in virtualFs) if (virtualFs[path].type === 'file' && path.toLowerCase().includes(kw)) matches.push(path); if (matches.length === 0) return `🔍 未找到包含 "${keyword}" 的文件`; return `🔍 找到 ${matches.length} 个匹配文件:\n${matches.join('\n')}`; }
+        function downloadCurrentFile() { if (!currentFilePath) { addFeedbackMsg('无可下载文件'); return; } const content = virtualFs[currentFilePath]?.content || ''; const blob = new Blob([content]); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = getBaseName(currentFilePath); a.click(); URL.revokeObjectURL(a.href); }
+        function clearContextMemory() { conversationHistory = []; document.getElementById('messages').innerHTML = ''; totalTokensUsed = 0; updateTokenDisplay(); addFeedbackMsg('🧹 上下文记忆已清除'); addConsoleLog('🧹 Agent 上下文记忆已清除', 'info'); }
+        function updateTokenDisplay() { document.getElementById('tokenDisplay').innerText = `📊 ${totalTokensUsed} tokens`; }
+        function estimateTokens(text) { if (!text) return 0; let chinese = (text.match(/[\u4e00-\u9fa5]/g) || []).length; let other = text.length - chinese; return Math.ceil(other / 3.5 + chinese / 1.5); }
 
         window.executeFileOperation = async function(operation, path, content = null, target = null) {
+            if (currentMode !== 'coding') return `❌ 当前为 Agent 模式，无法使用文件/文件夹工具。请切换到 CodingAgent 模式使用资源管理器功能。`;
             const normPath = normalizePath(path);
-            if (operation === "create") {
-                if (virtualFs[normPath]) return `❌ 文件 ${normPath} 已存在`;
-                createFile(normPath, content || '');
-                return `✅ 文件已创建: ${normPath}`;
-            }
-            if (operation === "update") {
-                if (!virtualFs[normPath] || virtualFs[normPath].type !== 'file') return `❌ 文件不存在: ${normPath}`;
-                virtualFs[normPath].content = content;
-                if (currentFilePath === normPath) document.getElementById('editor').value = content;
-                renderFullTree();
-                return `✅ 已更新: ${normPath}`;
-            }
-            if (operation === "delete") {
-                deleteNode(normPath);
-                return `✅ 已删除: ${normPath}`;
-            }
-            if (operation === "create_folder") {
-                if (virtualFs[normPath]) return `❌ 文件夹 ${normPath} 已存在`;
-                createFolder(normPath);
-                return `✅ 文件夹已创建: ${normPath}`;
-            }
-            if (operation === "rename") {
-                const newPath = normalizePath(target);
-                if (!virtualFs[normPath]) return `❌ 路径不存在: ${normPath}`;
-                if (virtualFs[newPath]) return `❌ 目标已存在: ${newPath}`;
-                renameNode(normPath, virtualFs[normPath].type);
-                return `✅ 已重命名: ${normPath} → ${newPath}`;
-            }
-            if (operation === "move") {
-                const src = normPath;
-                const dst = normalizePath(target);
-                return moveNode(src, dst);
-            }
+            if (operation === "create") { if (virtualFs[normPath]) return `❌ 文件已存在`; createFile(normPath, content || ''); return `✅ 文件已创建: ${normPath}`; }
+            if (operation === "update") { if (!virtualFs[normPath] || virtualFs[normPath].type !== 'file') return `❌ 文件不存在`; virtualFs[normPath].content = content; if (currentFilePath === normPath) document.getElementById('editor').value = content; renderFullTree(); return `✅ 已更新: ${normPath}`; }
+            if (operation === "delete") { deleteNode(normPath); return `✅ 已删除: ${normPath}`; }
+            if (operation === "create_folder") { if (virtualFs[normPath]) return `❌ 文件夹已存在`; createFolder(normPath); return `✅ 文件夹已创建: ${normPath}`; }
+            if (operation === "rename") { const newPath = normalizePath(target); if (!virtualFs[normPath]) return `❌ 路径不存在`; if (virtualFs[newPath]) return `❌ 目标已存在`; renameNode(normPath, virtualFs[normPath].type); return `✅ 已重命名: ${normPath} → ${newPath}`; }
+            if (operation === "move") { return moveNode(normPath, normalizePath(target)); }
             return "未知操作";
         };
 
         async function parseAndExecuteTags(fullText) {
             let displayHtml = fullText;
             let feedbacks = [];
+            let executedTools = [];
             displayHtml = displayHtml.replace(/<thinking>([\s\S]*?)<\/thinking>/g, `<div class="thinking">💭 ${escapeHtml("$1")}</div>`);
-            let m;
-            const fileCreateRegex = /<file-create\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-create>/g;
-            while ((m = fileCreateRegex.exec(fullText)) !== null) { let r = await window.executeFileOperation("create", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-            const fileUpdateRegex = /<file-update\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-update>/g;
-            while ((m = fileUpdateRegex.exec(fullText)) !== null) { let r = await window.executeFileOperation("update", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-            const fileDeleteRegex = /<file-delete\s+path="([^"]+)"\s*\/>/g;
-            while ((m = fileDeleteRegex.exec(fullText)) !== null) { let r = await window.executeFileOperation("delete", m[1]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-            const folderCreateRegex = /<folder-create\s+path="([^"]+)"\s*\/>/g;
-            while ((m = folderCreateRegex.exec(fullText)) !== null) { let r = await window.executeFileOperation("create_folder", m[1]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-            const renameRegex = /<rename\s+old-path="([^"]+)"\s+new-path="([^"]+)"\s*\/>/g;
-            while ((m = renameRegex.exec(fullText)) !== null) { let r = await window.executeFileOperation("rename", m[1], null, m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-            const moveRegex = /<move\s+source="([^"]+)"\s+target="([^"]+)"\s*\/>/g;
-            while ((m = moveRegex.exec(fullText)) !== null) { let r = await window.executeFileOperation("move", m[1], null, m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-            const getTimeRegex = /<get-time\s*\/>/g;
-            if (getTimeRegex.test(fullText)) { let now = new Date(); let timeStr = now.toISOString().slice(0,19).replace('T',' '); let result = `✅ 当前时间: ${timeStr}`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(getTimeRegex, `<div class="thinking">⏱️ ${timeStr}</div>`); }
-            const calcRegex = /<calc>([\s\S]*?)<\/calc>/g;
-            while ((m = calcRegex.exec(fullText)) !== null) { try { let result = eval(m[1]); let resultMsg = `✅ 计算结果: ${m[1]} = ${result}`; feedbacks.push(resultMsg); addFeedbackMsg(resultMsg); displayHtml = displayHtml.replace(m[0], `<div class="thinking">🧮 ${resultMsg}</div>`); } catch(e) { addFeedbackMsg(`❌ 计算错误`); } }
-            const getClipRegex = /<get-clipboard\s*\/>/g;
-            if (getClipRegex.test(fullText)) { try { const text = await navigator.clipboard.readText(); let result = `📋 剪贴板内容: ${text.substring(0,200)}`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(getClipRegex, `<div class="thinking">📋 ${escapeHtml(result)}</div>`); } catch(e) { addFeedbackMsg(`❌ 读取剪贴板失败`); } }
-            const setClipRegex = /<set-clipboard>([\s\S]*?)<\/set-clipboard>/g;
-            while ((m = setClipRegex.exec(fullText)) !== null) { try { await navigator.clipboard.writeText(m[1]); let result = `✅ 已写入剪贴板`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(m[0], `<div class="thinking">📋 ${escapeHtml(result)}</div>`); } catch(e) { addFeedbackMsg(`❌ 写入剪贴板失败`); } }
-            const uuidRegex = /<uuid-generate\s*\/>/g;
-            if (uuidRegex.test(fullText)) { const uuid = crypto.randomUUID(); let result = `🔑 新UUID: ${uuid}`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(uuidRegex, `<div class="thinking">🔑 ${escapeHtml(result)}</div>`); }
-            const b64encodeRegex = /<base64-encode>([\s\S]*?)<\/base64-encode>/g;
-            while ((m = b64encodeRegex.exec(fullText)) !== null) { try { let encoded = btoa(unescape(encodeURIComponent(m[1]))); let result = `✅ Base64编码成功`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔐 ${encoded.substring(0,80)}...</div>`); } catch(e) {} }
-            const b64decodeRegex = /<base64-decode>([\s\S]*?)<\/base64-decode>/g;
-            while ((m = b64decodeRegex.exec(fullText)) !== null) { try { let decoded = decodeURIComponent(escape(atob(m[1]))); let result = `✅ Base64解码成功`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔓 ${decoded.substring(0,100)}</div>`); } catch(e) {} }
-            const fetchRegex = /<fetch-url\s+url="([^"]+)"\s*\/>/g;
-            while ((m = fetchRegex.exec(fullText)) !== null) { try { let resp = await fetch(m[1]); let text = await resp.text(); let truncated = text.substring(0,300); let result = `✅ 获取 ${m[1]} 成功`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(m[0], `<div class="thinking">🌐 ${escapeHtml(truncated)}</div>`); } catch(e) { addFeedbackMsg(`❌ 获取URL失败`); } }
-            const deviceRegex = /<detect-device\s*\/>/g;
-            if (deviceRegex.test(fullText)) { let info = { ua: navigator.userAgent.slice(0,80) }; let result = `🖥️ 设备信息已检测`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(deviceRegex, `<div class="thinking">🖥️ ${escapeHtml(JSON.stringify(info))}</div>`); }
-            const notifyRegex = /<show-notification\s+title="([^"]*)"\s+body="([^"]*)"\s*\/>/g;
-            while ((m = notifyRegex.exec(fullText)) !== null) { try { if (Notification.permission === "granted") new Notification(m[1]||"通知", {body:m[2]}); else if (Notification.permission !== "denied") await Notification.requestPermission(); addFeedbackMsg(`🔔 通知已发送`); displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔔 通知</div>`); } catch(e) {} }
-            const qrRegex = /<qr-code(?:\s+size="(\d+)")?>([\s\S]*?)<\/qr-code>/g;
-            while ((m = qrRegex.exec(fullText)) !== null) { let size = m[1]?parseInt(m[1]):120; let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(m[2].trim())}`; let imgHtml = `<img src="${qrUrl}" class="qr-img" style="max-width:${size}px">`; displayHtml = displayHtml.replace(m[0], `<div class="thinking">📱 二维码<br>${imgHtml}</div>`); }
-            const textStatsRegex = /<text-statistics>([\s\S]*?)<\/text-statistics>/g;
-            while ((m = textStatsRegex.exec(fullText)) !== null) { let text=m[1], chars=text.length, words=text.trim().split(/\s+/).filter(w=>w).length; let result = `📊 字符:${chars} 单词:${words}`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(m[0], `<div class="thinking">📊 ${escapeHtml(result)}</div>`); }
-            const jsonValidatorRegex = /<json-validator>([\s\S]*?)<\/json-validator>/g;
-            while ((m = jsonValidatorRegex.exec(fullText)) !== null) { try { JSON.parse(m[1]); let result = `✅ JSON 有效`; feedbacks.push(result); addFeedbackMsg(result); displayHtml = displayHtml.replace(m[0], `<div class="thinking">📐 JSON 有效</div>`); } catch(e) { addFeedbackMsg(`❌ JSON 无效`); } }
+            const toolPatterns = [
+                { regex: /<file-create\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-create>/g, name: 'file-create', handler: async (m) => await window.executeFileOperation("create", m[1], m[2]) },
+                { regex: /<file-update\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-update>/g, name: 'file-update', handler: async (m) => await window.executeFileOperation("update", m[1], m[2]) },
+                { regex: /<file-delete\s+path="([^"]+)"\s*\/>/g, name: 'file-delete', handler: async (m) => await window.executeFileOperation("delete", m[1]) },
+                { regex: /<folder-create\s+path="([^"]+)"\s*\/>/g, name: 'folder-create', handler: async (m) => await window.executeFileOperation("create_folder", m[1]) },
+                { regex: /<rename\s+old-path="([^"]+)"\s+new-path="([^"]+)"\s*\/>/g, name: 'rename', handler: async (m) => await window.executeFileOperation("rename", m[1], null, m[2]) },
+                { regex: /<move\s+source="([^"]+)"\s+target="([^"]+)"\s*\/>/g, name: 'move', handler: async (m) => await window.executeFileOperation("move", m[1], null, m[2]) },
+                { regex: /<read-file\s+path="([^"]+)"\s*\/>/g, name: 'read-file', handler: async (m) => readFileContent(m[1]) },
+                { regex: /<search-files\s+keyword="([^"]+)"\s*\/>/g, name: 'search-files', handler: async (m) => searchFilesByKeyword(m[1]) },
+                { regex: /<get-time\s*\/>/g, name: 'get-time', handler: async () => { let now = new Date(); return `✅ 当前时间: ${now.toISOString().slice(0,19).replace('T',' ')}`; } },
+                { regex: /<calc>([\s\S]*?)<\/calc>/g, name: 'calc', handler: async (m) => { try { let result = eval(m[1]); return `✅ 计算结果: ${m[1]} = ${result}`; } catch(e) { return `❌ 计算错误: ${e.message}`; } } },
+                { regex: /<get-clipboard\s*\/>/g, name: 'get-clipboard', handler: async () => { try { const text = await navigator.clipboard.readText(); return `📋 剪贴板内容: ${text.substring(0,200)}`; } catch(e) { return `❌ 读取剪贴板失败: ${e.message}`; } } },
+                { regex: /<set-clipboard>([\s\S]*?)<\/set-clipboard>/g, name: 'set-clipboard', handler: async (m) => { try { await navigator.clipboard.writeText(m[1]); return `✅ 已写入剪贴板`; } catch(e) { return `❌ 写入剪贴板失败: ${e.message}`; } } },
+                { regex: /<uuid-generate\s*\/>/g, name: 'uuid-generate', handler: async () => { return `🔑 新UUID: ${crypto.randomUUID()}`; } },
+                { regex: /<base64-encode>([\s\S]*?)<\/base64-encode>/g, name: 'base64-encode', handler: async (m) => { try { let encoded = btoa(unescape(encodeURIComponent(m[1]))); return `✅ Base64编码成功: ${encoded.substring(0,80)}...`; } catch(e) { return `❌ 编码失败: ${e.message}`; } } },
+                { regex: /<base64-decode>([\s\S]*?)<\/base64-decode>/g, name: 'base64-decode', handler: async (m) => { try { let decoded = decodeURIComponent(escape(atob(m[1]))); return `✅ Base64解码成功: ${decoded.substring(0,100)}`; } catch(e) { return `❌ 解码失败: ${e.message}`; } } },
+                { regex: /<fetch-url\s+url="([^"]+)"\s*\/>/g, name: 'fetch-url', handler: async (m) => { try { let controller = new AbortController(); let timeout = setTimeout(() => controller.abort(), 10000); let resp = await fetch(m[1], { signal: controller.signal }); clearTimeout(timeout); let text = await resp.text(); return `✅ 获取 ${m[1]} 成功 (${resp.status})，内容预览: ${text.substring(0,300)}`; } catch(e) { return `❌ 获取URL失败: ${e.message}`; } } },
+                { regex: /<detect-device\s*\/>/g, name: 'detect-device', handler: async () => { return `🖥️ 设备信息: ${navigator.userAgent.substring(0,80)}`; } },
+                { regex: /<show-notification\s+title="([^"]*)"\s+body="([^"]*)"\s*\/>/g, name: 'show-notification', handler: async (m) => { try { if (Notification.permission === "granted") new Notification(m[1]||"通知", {body:m[2]}); else if (Notification.permission !== "denied") await Notification.requestPermission(); return `🔔 通知已发送`; } catch(e) { return `❌ 通知失败: ${e.message}`; } } },
+                { regex: /<qr-code(?:\s+size="(\d+)")?>([\s\S]*?)<\/qr-code>/g, name: 'qr-code', handler: async (m) => { let size = m[1]?parseInt(m[1]):120; let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(m[2].trim())}`; return `<img src="${qrUrl}" class="qr-img" style="max-width:${size}px">`; } },
+                { regex: /<text-statistics>([\s\S]*?)<\/text-statistics>/g, name: 'text-statistics', handler: async (m) => { let text=m[1], chars=text.length, words=text.trim().split(/\s+/).filter(w=>w).length, lines=text.split(/\r?\n/).length, readingTime=Math.ceil(words/200); return `📊 字符:${chars}, 单词:${words}, 行数:${lines}, 预估阅读:${readingTime}分钟`; } },
+                { regex: /<json-validator>([\s\S]*?)<\/json-validator>/g, name: 'json-validator', handler: async (m) => { try { JSON.parse(m[1]); return `✅ JSON 有效`; } catch(e) { return `❌ JSON 无效: ${e.message}`; } } }
+            ];
+            for (let pattern of toolPatterns) {
+                let match;
+                while ((match = pattern.regex.exec(fullText)) !== null) {
+                    let result = await pattern.handler(match);
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(match[0], pattern.name === 'qr-code' ? `<div class="thinking">📱 二维码<br>${result}</div>` : `<div class="thinking">🔧 ${escapeHtml(result.substring(0,200))}</div>`);
+                    executedTools.push(pattern.name);
+                    addConsoleLog(`🔧 执行工具: ${pattern.name}`, 'info');
+                }
+            }
             const taskDownRegex = /<task-down\s*\/?>|<task-done\s*\/?>/; const hasTaskDown = taskDownRegex.test(fullText); const hasWaiting = /<waiting>|<wait-user\s*\/?>/.test(fullText);
-            if (hasTaskDown) displayHtml = displayHtml.replace(taskDownRegex, '<div class="task-done">✅ 任务完成</div>');
-            if (hasWaiting) displayHtml = displayHtml.replace(/<waiting>|<wait-user\s*\/?>/, '<div class="waiting-pill">⏳ 等待用户回复</div>');
+            if (hasTaskDown) { displayHtml = displayHtml.replace(taskDownRegex, '<div class="task-done">✅ 任务完成</div>'); addConsoleLog(`🔧 执行工具: task-down`, 'success'); }
+            if (hasWaiting) { displayHtml = displayHtml.replace(/<waiting>|<wait-user\s*\/?>/, '<div class="waiting-pill">⏳ 等待用户回复</div>'); addConsoleLog(`🔧 执行工具: waiting`, 'info'); }
+            if (executedTools.length === 0 && !hasTaskDown && !hasWaiting && fullText.trim() !== "") {
+                addConsoleLog(`⚠️ 模型输出未包含有效工具标签: ${fullText.substring(0, 100)}`, 'warn');
+            }
             return { displayHtml, feedbacks, hasWaiting, hasTaskDown };
         }
 
-        function addConsoleLog(message, type) { 
-            const entry = document.createElement('div'); 
-            entry.className = `log-entry log-${type}`; 
-            entry.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${escapeHtml(message)}`; 
-            document.getElementById('consoleLog').appendChild(entry); 
-            entry.scrollIntoView({block:'nearest'}); 
-        }
-        function addFeedbackMsg(text) { 
-            const div = document.createElement('div'); 
-            div.className = 'msg feedback-msg'; 
-            div.innerHTML = `🔧 ${escapeHtml(text)}`; 
-            document.getElementById('messages').appendChild(div); 
-            div.scrollIntoView({behavior:'smooth'}); 
-        }
-        function addUserMsg(text) { 
-            const div = document.createElement('div'); 
-            div.className = 'msg user-msg'; 
-            div.innerHTML = escapeHtml(text); 
-            document.getElementById('messages').appendChild(div); 
-            div.scrollIntoView({behavior:'smooth'}); 
-        }
-        function addAgentMsgWithStream() { 
-            const div = document.createElement('div'); 
-            div.className = 'msg agent-msg'; 
-            document.getElementById('messages').appendChild(div); 
-            div.scrollIntoView({behavior:'smooth'}); 
-            return div; 
-        }
+        function addConsoleLog(message, type) { const entry = document.createElement('div'); entry.className = `log-entry log-${type}`; entry.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${escapeHtml(message)}`; document.getElementById('consoleLog').appendChild(entry); entry.scrollIntoView({block:'nearest'}); }
+        function addFeedbackMsg(text) { const div = document.createElement('div'); div.className = 'msg feedback-msg'; div.innerHTML = `🔧 ${escapeHtml(text)}`; document.getElementById('messages').appendChild(div); div.scrollIntoView({behavior:'smooth'}); }
+        function addUserMsg(text) { const div = document.createElement('div'); div.className = 'msg user-msg'; div.innerHTML = escapeHtml(text); document.getElementById('messages').appendChild(div); div.scrollIntoView({behavior:'smooth'}); }
+        function addAgentMsgWithStream() { const div = document.createElement('div'); div.className = 'msg agent-msg'; document.getElementById('messages').appendChild(div); div.scrollIntoView({behavior:'smooth'}); return div; }
         function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]); }
 
-        initDefaultFs();
-        renderFullTree();
+        initDefaultFs(); renderFullTree();
 
-        const terminalPanel = document.getElementById('terminalPanel');
-        const collapseBtn = document.getElementById('collapseTerminalBtn');
-        let isTerminalCollapsed = false;
-        collapseBtn.addEventListener('click', () => {
-            isTerminalCollapsed = !isTerminalCollapsed;
-            if (isTerminalCollapsed) {
-                terminalPanel.classList.add('collapsed');
-                collapseBtn.textContent = '▲';
+        function setMode(mode) {
+            currentMode = mode;
+            const workspaceArea = document.getElementById('workspaceArea');
+            const codingOpt = document.querySelector('[data-mode="coding"]');
+            const agentOpt = document.querySelector('[data-mode="agent"]');
+            if (mode === 'coding') {
+                workspaceArea.classList.remove('hidden');
+                codingOpt.classList.add('active');
+                agentOpt.classList.remove('active');
+                addFeedbackMsg('✅ 已切换到 CodingAgent 模式。资源管理器和编辑器已显示，文件/文件夹工具可用，模型将严格输出工具标签。');
+                addConsoleLog('模式切换: CodingAgent (完整工具集)', 'info');
             } else {
-                terminalPanel.classList.remove('collapsed');
-                collapseBtn.textContent = '▼';
+                workspaceArea.classList.add('hidden');
+                agentOpt.classList.add('active');
+                codingOpt.classList.remove('active');
+                addFeedbackMsg('✅ 已切换到 Agent 模式。资源管理器和编辑器已隐藏，文件/文件夹工具不可用，模型可以输出自然语言。');
+                addConsoleLog('模式切换: Agent (自然语言模式，无文件工具)', 'info');
             }
+            if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; }
+            clearContextMemory();
+        }
+
+        document.querySelectorAll('.mode-option').forEach(opt => {
+            opt.addEventListener('click', () => { if (opt.dataset.mode === currentMode) return; setMode(opt.dataset.mode); });
         });
 
-        document.getElementById('newFileBtn').onclick = () => createFileInFolder('');
-        document.getElementById('newFolderBtn').onclick = () => createFolderInFolder('');
-        document.getElementById('saveFileBtn').onclick = saveCurrentFile;
-        document.getElementById('downloadBtn').onclick = downloadCurrentFile;
+        document.getElementById('newFileBtn').onclick = () => { if (currentMode === 'coding') createFileInFolder(''); else addFeedbackMsg('❌ Agent 模式下无法使用文件操作'); };
+        document.getElementById('newFolderBtn').onclick = () => { if (currentMode === 'coding') createFolderInFolder(''); else addFeedbackMsg('❌ Agent 模式下无法使用文件夹操作'); };
+        document.getElementById('saveFileBtn').onclick = () => { if (currentMode === 'coding') saveCurrentFile(); else addFeedbackMsg('❌ Agent 模式下无法保存文件'); };
+        document.getElementById('downloadBtn').onclick = () => { if (currentMode === 'coding') downloadCurrentFile(); else addFeedbackMsg('❌ Agent 模式下无法下载文件'); };
         document.getElementById('manualPreviewBtn').onclick = () => { if (currentFilePath && virtualFs[currentFilePath]) { document.getElementById('previewFrame').srcdoc = virtualFs[currentFilePath].content; document.getElementById('previewModal').classList.remove('hidden'); } };
         document.getElementById('closePreview').onclick = () => document.getElementById('previewModal').classList.add('hidden');
         document.getElementById('saveKeyBtn').onclick = () => { apiKey = document.getElementById('apiKey').value.trim(); localStorage.setItem('muyan_api', apiKey); addFeedbackMsg('✅ API Key 已保存'); };
         document.getElementById('modelSelect').onchange = (e) => { selectedModel = e.target.value; addConsoleLog(`切换模型: ${selectedModel}`, 'info'); };
         document.getElementById('sendBtn').onclick = async () => { if (agentActive) { addFeedbackMsg('请先停止'); return; } let text = document.getElementById('prompt').value.trim(); if (!text) return; document.getElementById('prompt').value = ''; await runAgent(text); };
         document.getElementById('stopBtn').onclick = () => { if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; addFeedbackMsg('⏹️ 已停止'); document.getElementById('status').innerText = '⚪ 已停止'; } };
+        document.getElementById('clearMemoryBtn').onclick = clearContextMemory;
         document.getElementById('consoleTabClear').onclick = () => { document.getElementById('consoleLog').innerHTML = ''; addConsoleLog('控制台已清空', 'info'); };
         document.getElementById('exportPdfBtn').onclick = exportToPdf;
+        const terminalPanel = document.getElementById('terminalPanel'); const collapseBtn = document.getElementById('collapseTerminalBtn'); let isTerminalCollapsed = false;
+        collapseBtn.addEventListener('click', () => { isTerminalCollapsed = !isTerminalCollapsed; if (isTerminalCollapsed) { terminalPanel.classList.add('collapsed'); collapseBtn.textContent = '▲'; } else { terminalPanel.classList.remove('collapsed'); collapseBtn.textContent = '▼'; } });
 
         async function streamDeepSeek(messages, onChunk) { 
             if (!apiKey) throw new Error('请设置 API Key'); 
-            const resp = await fetch('https://api.deepseek.com/v1/chat/completions', { 
-                method:'POST', 
-                headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`}, 
-                body:JSON.stringify({ model:selectedModel, messages, stream:true, temperature:0.7 }) 
-            }); 
+            const resp = await fetch('https://api.deepseek.com/v1/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`}, body:JSON.stringify({ model:selectedModel, messages, stream:true, temperature:0.7 }) }); 
             if (!resp.ok) throw new Error(`API错误 ${resp.status}`); 
-            const reader = resp.body.getReader(); 
-            const decoder = new TextDecoder(); 
-            let buffer='', full=''; 
-            while(true){ 
-                const {done,value}=await reader.read(); 
-                if(done) break; 
-                buffer+=decoder.decode(value,{stream:true}); 
-                const lines=buffer.split('\n'); 
-                buffer=lines.pop(); 
-                for(let line of lines){ 
-                    if(line.startsWith('data: ')){ 
-                        const data=line.slice(6); 
-                        if(data==='[DONE]') return full; 
-                        try{ 
-                            const parsed=JSON.parse(data); 
-                            const delta=parsed.choices[0]?.delta?.content; 
-                            if(delta){ full+=delta; if(onChunk) onChunk(delta); } 
-                        }catch(e){} 
-                    } 
-                } 
-            } 
-            return full; 
+            const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buffer='', full=''; 
+            while(true){ const {done,value}=await reader.read(); if(done) break; buffer+=decoder.decode(value,{stream:true}); const lines=buffer.split('\n'); buffer=lines.pop(); for(let line of lines){ if(line.startsWith('data: ')){ const data=line.slice(6); if(data==='[DONE]') return full; try{ const parsed=JSON.parse(data); const delta=parsed.choices[0]?.delta?.content; if(delta){ full+=delta; if(onChunk) onChunk(delta); } }catch(e){} } } } return full; 
         }
 
-        const SYSTEM_PROMPT_FULL = `你是 MuYanCoding，一个专业且功能完整的 AI 编程 Agent。你必须严格遵守以下输出格式和工具使用规范，禁止输出任何不符合规范的内容。
+        const SYSTEM_CODING = `你是 MuYanCoding，一个专业且功能完整的 AI 编程 Agent。你必须严格遵守以下输出格式和工具使用规范，禁止输出任何不符合规范的内容。
 
-【全局硬性限制】
+【你的角色】
+你是专门用于编程和文件操作的智能体，拥有对虚拟文件系统的完全控制权。用户期望你通过执行原子操作（每个操作一个标签）来逐步完成复杂的编程任务。每次执行操作后，系统会返回执行结果，你需要根据结果决定下一步操作。
+
+【全局硬性限制 - 防止复读和循环】
 1. 绝对禁止使用任何 Markdown 语法（如 #, **, \`, \`\`\`, --- 等）。
-2. 禁止输出任何自然语言解释、对话、问候或与任务无关的文字。
-3. 每次回复只能包含零个或一个 <thinking> 标签，以及紧接着的一个功能标签（例如 <file-create ...> 或 <task-down/>）。不能同时输出多个功能标签。
+2. 禁止输出任何自然语言解释、对话、问候或与任务无关的文字。你的回复必须只包含标签，不能有额外字符。
+3. 每次回复只能包含零个或一个 <thinking> 标签，以及紧接着的一个功能标签（例如 <file-create ...> 或 <task-down/>）。绝对不能同时输出多个功能标签。
 4. 你需要通过反复执行单一标签来逐步完成任务。每次执行后，系统会给出反馈，你根据反馈选择下一个标签。
 5. 当任务完全完成时，必须输出 <task-down> 或 <task-done/>。
 6. 当需要用户提供额外信息或确认时，必须输出 <waiting> 或 <wait-user/>，系统会暂停并等待用户输入，用户回复后你将收到用户的输入内容。
+7. 【严禁复读】禁止连续两次输出相同内容的标签（除非系统反馈明确要求重试）。如果某个操作返回失败，应尝试不同的方法或路径，而不是重复相同的指令。
+8. 【严禁循环】禁止在没有进展的情况下重复执行相同的工具序列。如果连续3步都没有实质性进展（例如反复读取同一文件、反复创建已存在的文件），立即输出 <task-down/> 结束任务。
+9. 【基于反馈决策】每次收到系统反馈后，必须根据反馈内容决定下一步。如果反馈显示成功，继续下一步；如果显示失败，尝试替代方案或向用户请求必要信息（使用 <waiting>）。
+10. 【任务分解】复杂任务必须分解为多个原子操作。不要试图在一个标签中完成多个事情。例如：先创建文件，再写入内容；先搜索文件，再读取内容。
 
 【可用工具标签完整列表及详细说明】
 
 一、文件与工作台操作（文件内容操作）
-- <file-create path="文件路径">文件内容</file-create> ：创建新文件（如果父目录不存在会自动创建）
-- <file-update path="文件路径">新的完整内容</file-update> ：更新或覆盖文件内容
-- <file-delete path="文件路径"/> ：删除文件
-- <get-time/> ：返回当前系统时间（北京时间）
-- <calc>数学表达式</calc> ：计算数学表达式
-- <highlight>重要文本</highlight> ：高亮显示
-- <link>url,显示文字</link> ：创建链接
-- <code-html>代码</code-html> 或 <code>通用代码</code> ：展示代码块
-- <html>完整HTML代码</html> ：渲染预览HTML页面
-- <check-code lang="语言">代码片段</check-code> ：静态代码检查
+- <file-create path="文件路径">文件内容</file-create> ：创建新文件（如果父目录不存在会自动创建）。路径使用正斜杠 /，支持多级目录。
+- <file-update path="文件路径">新的完整内容</file-update> ：更新或覆盖文件内容。注意：这会完全替换原有内容。
+- <file-delete path="文件路径"/> ：删除文件或文件夹（递归删除）。删除文件夹会删除其下所有内容。
+- <get-time/> ：返回当前系统时间（北京时间，格式 YYYY-MM-DD HH:MM:SS）。
+- <calc>数学表达式</calc> ：计算数学表达式，支持基本运算 + - * / 和括号。
+- <highlight>重要文本</highlight> ：在回复中高亮显示重要文本。
+- <link>url,显示文字</link> ：创建超链接。
+- <code-html>代码</code-html> 或 <code>通用代码</code> ：展示代码块，支持语法高亮。
+- <html>完整HTML代码</html> ：渲染预览HTML页面。
+- <check-code lang="语言">代码片段</check-code> ：对代码进行静态检查（仅分析，不修改）。
 
-二、文件夹管理（新增完整文件夹操作）
-- <folder-create path="文件夹路径"/> ：创建文件夹（支持多级目录自动创建）
-- <rename old-path="原路径" new-path="新路径"/> ：重命名文件或文件夹
-- <move source="源路径" target="目标路径"/> ：移动文件或文件夹到新位置（自动处理子内容）
-- 注：删除文件夹请使用 <file-delete path="文件夹路径"/> （会递归删除所有内容）
+二、文件夹管理（完整的目录操作）
+- <folder-create path="文件夹路径"/> ：创建文件夹（支持多级目录自动创建）。如果父目录不存在会自动创建。
+- <rename old-path="原路径" new-path="新路径"/> ：重命名文件或文件夹。路径可以是文件或文件夹。
+- <move source="源路径" target="目标路径"/> ：移动文件或文件夹到新位置。会自动处理子内容（如果是文件夹，内部所有内容都会被移动）。
 
-三、可用工具
-- <get-clipboard/> ：读取系统剪贴板内容（需用户授权）
-- <set-clipboard>文本内容</set-clipboard> ：将文本写入系统剪贴板
-- <uuid-generate/> ：生成符合 UUID v4 标准的唯一标识符
-- <base64-encode>文本</base64-encode> ：对文本进行 Base64 编码（支持中文）
-- <base64-decode>base64字符串</base64-decode> ：解码 Base64 字符串
-- <fetch-url url="https://..."/> ：发起 HTTP GET 请求，获取 URL 内容（最多返回前500字符）
-- <detect-device/> ：检测当前设备信息（浏览器、屏幕、平台等）
-- <show-notification title="标题" body="内容"/> ：发送浏览器桌面通知（首次会请求权限）
-- <qr-code size="150">文本内容</qr-code> ：生成包含文本内容的二维码图片（尺寸可选，默认150px）
-- <text-statistics>文本内容</text-statistics> ：统计文本的字符数、单词数、行数和预估阅读时间
-- <json-validator>JSON字符串</json-validator> ：验证并格式化 JSON 字符串，返回可读格式
+三、文件检索与读取（用于查找和分析文件）
+- <read-file path="文件路径"/> ：读取指定文件的完整内容并返回给 AI。这不会自动在编辑器中打开，仅返回内容供分析。如果文件很大，内容会被截断显示前2000字符。
+- <search-files keyword="关键词"/> ：在当前工作区中搜索文件名包含关键词的所有文件，返回匹配的文件路径列表（不区分大小写）。非常适合用来查找特定类型的文件或定位文件位置。
 
-四、任务管理
-- <task-down> 或 <task-done/> ：标记任务完成
-- <waiting> 或 <wait-user/> ：暂停并等待用户输入
+四、实用工具（通用功能）
+- <get-clipboard/> ：读取系统剪贴板内容（需要用户授权）。如果用户未授权，会提示失败。
+- <set-clipboard>文本内容</set-clipboard> ：将文本写入系统剪贴板。
+- <uuid-generate/> ：生成符合 UUID v4 标准的唯一标识符。
+- <base64-encode>文本</base64-encode> ：对文本进行 Base64 编码（支持中文）。
+- <base64-decode>base64字符串</base64-decode> ：解码 Base64 字符串。
+- <fetch-url url="https://..."/> ：发起 HTTP GET 请求，获取 URL 内容（最多返回前500字符）。有10秒超时限制。
+- <detect-device/> ：检测当前设备信息（浏览器 UserAgent、语言、屏幕尺寸等）。
+- <show-notification title="标题" body="内容"/> ：发送浏览器桌面通知（首次会请求权限）。
+- <qr-code size="150">文本内容</qr-code> ：生成包含文本内容的二维码图片（尺寸可选，默认150px）。
+- <text-statistics>文本内容</text-statistics> ：统计文本的字符数、单词数、行数和预估阅读时间。
+- <json-validator>JSON字符串</json-validator> ：验证并格式化 JSON 字符串，返回可读格式。
+
+五、任务管理
+- <task-down> 或 <task-done/> ：标记任务完成。输出此标签后，Agent 会停止当前任务。
+- <waiting> 或 <wait-user/> ：暂停并等待用户输入。用于需要用户提供额外信息或确认的场景。
 
 【输出格式强制要求】
-- 每次只能输出一个功能标签（可以前面加一个 <thinking> 标签）。
+- 每次只能输出一个功能标签（可以前面加一个 <thinking> 标签作为思考过程）。
 - 示例正确输出：
-  <thinking>用户需要生成二维码</thinking>
-  <qr-code size="200">https://example.com</qr-code>
-- 禁止在回答中输出自然语言解释（思考中可以）。只有标签。
+  <thinking>用户需要搜索所有JS文件，然后读取第一个文件内容</thinking>
+  <search-files keyword=".js"/>
+- 示例错误输出（禁止）：
+  "好的，我现在来搜索文件。" <search-files keyword=".js"/> （禁止自然语言）
+  <search-files keyword=".js"/><read-file path="src/main.js"/> （禁止两个标签）
+- 禁止输出自然语言解释。只有标签。
 - 禁止在同一个回复中输出两个不同的功能标签。
 
-【任务执行流程】
-1. 用户提出需求。
-2. 你根据需求，输出一个标签执行一个操作。
-3. 系统执行该操作并返回反馈。
-4. 你根据反馈决定下一步，再次输出一个标签。
-5. 若任务完成，输出 <task-down> 结束。
-6. 若有信息需要用户提供或需要确认，则使用 <wait-user/> 等待
+【任务执行流程示例】
+用户: "帮我创建一个 index.html 文件，内容是 Hello World"
+正确执行序列:
+1. <thinking>需要创建文件 index.html</thinking>
+   <file-create path="index.html">Hello World</file-create>
+   系统返回: ✅ 文件已创建: index.html
+2. <thinking>任务完成，输出结束标签</thinking>
+   <task-down/>
+
+用户: "搜索所有 .py 文件并读取第一个"
+正确执行序列:
+1. <thinking>先搜索所有.py文件</thinking>
+   <search-files keyword=".py"/>
+   系统返回: 🔍 找到 3 个匹配文件: app.py utils.py config.py
+2. <thinking>读取 app.py 的内容</thinking>
+   <read-file path="app.py"/>
+   系统返回: ✅ 文件 app.py 内容: ... 
+3. <thinking>任务完成</thinking>
+   <task-down/>
 
 【注意事项】
 - 所有工具都真实可用，会立即执行并返回结果。
@@ -1216,35 +983,86 @@
 - 文件夹路径请使用正斜杠 / ，不要使用反斜杠。
 - 移动/重命名时，目标路径如果已存在会失败，请先检查或使用不同名称。
 - 创建文件或文件夹时，父目录不存在会自动创建。
+- 当你不确定某个文件的内容时，先用 <search-files> 找到文件，再用 <read-file> 读取内容。
+- 如果遇到错误且无法自动修复，使用 <waiting> 请求用户帮助，而不是反复尝试相同操作。
 
 现在，请根据用户的任务要求，遵循上述规范逐步执行。记住：只输出标签，不输出任何解释文字。开始。`;
+
+        const SYSTEM_AGENT = `你是 MuYanCoding Agent，一个智能编程助手。你可以输出自然语言与用户对话，回答编程问题，提供建议，解释代码，或者使用工具来帮助用户。
+
+【你的角色】
+你是友好的、知识丰富的编程助手。你可以自由地使用自然语言与用户交流，同时也可以调用一些实用工具来增强你的能力（如获取时间、计算、剪贴板操作、网络请求等）。但是，你**不能**使用任何与文件/文件夹操作相关的工具（如创建、修改、删除文件/文件夹等），因为当前处于纯对话模式。如果用户需要操作文件或文件夹，请友好地告知用户切换到“CodingAgent”模式。
+
+【可用工具列表】（文件/文件夹工具不可用，其他工具可用）
+以下工具可以通过在回复中插入 XML 标签的方式调用，工具执行结果会显示在对话中。
+
+- <get-time/> : 获取当前系统时间（北京时间）。
+- <calc>数学表达式</calc> : 计算数学表达式，例如 <calc>2 + 3 * 4</calc>。
+- <get-clipboard/> : 读取系统剪贴板内容（需要用户授权）。
+- <set-clipboard>文本内容</set-clipboard> : 将文本写入系统剪贴板。
+- <uuid-generate/> : 生成一个随机 UUID v4 字符串。
+- <base64-encode>文本</base64-encode> : 对文本进行 Base64 编码（支持中文）。
+- <base64-decode>base64字符串</base64-decode> : 解码 Base64 字符串。
+- <fetch-url url="https://..."/> : 发起 HTTP GET 请求获取 URL 内容（最多返回前500字符，超时10秒）。
+- <detect-device/> : 检测当前设备信息（UserAgent、语言、屏幕尺寸等）。
+- <show-notification title="标题" body="内容"/> : 发送浏览器桌面通知（首次会请求权限）。
+- <qr-code size="150">文本内容</qr-code> : 生成包含文本内容的二维码图片（尺寸可选，默认150px）。
+- <text-statistics>文本内容</text-statistics> : 统计文本的字符数、单词数、行数和预估阅读时间。
+- <json-validator>JSON字符串</json-validator> : 验证并格式化 JSON 字符串。
+
+【重要限制】
+- **你绝对不能使用以下工具**：<file-create>, <file-update>, <file-delete>, <folder-create>, <rename>, <move>, <read-file>, <search-files>。
+- 如果用户要求你执行文件操作（如“创建一个文件”、“删除文件夹”、“读取文件内容”等），请回复类似：“很抱歉，当前 Agent 模式不支持文件操作。请切换到顶栏的「CodingAgent」模式，该模式拥有完整的文件/文件夹管理能力。”
+- 不要尝试输出文件操作相关的标签，系统会拒绝执行并给出错误提示。
+
+【输出格式】
+- 你可以自由使用自然语言回复，可以混合使用工具标签。工具标签会被系统执行，并将结果显示在对话中。
+- 示例正确输出：
+  “现在的时间是：<get-time/>  \n 这是您需要的二维码：<qr-code>https://example.com</qr-code>”
+- 当完成用户的请求时，用自然语言结束即可，不需要输出特定的任务完成标签。
+- 你可以自然地与用户多轮对话，回答问题，提供代码示例（使用 Markdown 代码块），解释概念等。
+
+【任务执行建议】
+- 保持友好、热情、专业的语气。
+- 如果用户的问题涉及编程，尽量提供清晰的解释和代码示例（用 Markdown 代码块包裹）。
+- 如果用户的问题需要文件操作，主动提示切换到 CodingAgent 模式。
+- 如果你不确定答案，可以诚实地说不知道，并建议用户查阅相关文档。
+
+现在，请开始与用户交流。记住：你可以使用自然语言，也可以调用上述工具。文件操作相关工具不可用。`;
 
         async function runAgent(initialMsg) { 
             if (agentActive) return; 
             agentActive=true; 
             document.getElementById('status').innerText='🔵 运行中'; 
             addUserMsg(initialMsg); 
-            conversationHistory=[{role:'system',content:SYSTEM_PROMPT_FULL},{role:'user',content:initialMsg}]; 
-            let step=0; 
-            while(agentActive && step<20){ 
+            const systemPrompt = currentMode === 'coding' ? SYSTEM_CODING : SYSTEM_AGENT;
+            conversationHistory = [{role:'system',content:systemPrompt}, {role:'user',content:initialMsg}];
+            let step=0, maxSteps=currentMode === 'coding' ? 25 : 10;
+            let lastOutputHash = "", consecutiveSame = 0;
+            while(agentActive && step<maxSteps){ 
                 step++; 
                 document.getElementById('status').innerText=`🔵 思考中 (${step})`; 
                 let agentDiv=addAgentMsgWithStream(); 
                 let full=''; 
+                const startTime = Date.now();
                 try{ 
-                    full=await streamDeepSeek(conversationHistory, (chunk)=>{ 
-                        agentDiv.innerHTML+=chunk; 
-                        agentDiv.scrollIntoView({behavior:'smooth',block:'nearest'}); 
-                    }); 
-                }catch(err){ 
-                    addFeedbackMsg(`❌ API错误: ${err.message}`); 
-                    break; 
-                } 
-                const {displayHtml,feedbacks,hasTaskDown,hasWaiting}=await parseAndExecuteTags(full); 
-                agentDiv.innerHTML=displayHtml; 
-                conversationHistory.push({role:'assistant',content:full}); 
-                if(feedbacks.length) conversationHistory.push({role:'system',content:'反馈:\n'+feedbacks.join('\n')}); 
-                if(hasTaskDown){ addFeedbackMsg('🏁 任务完成'); break; } 
+                    full=await streamDeepSeek(conversationHistory, (chunk)=>{ agentDiv.innerHTML+=chunk; agentDiv.scrollIntoView({behavior:'smooth',block:'nearest'}); }); 
+                }catch(err){ addFeedbackMsg(`❌ API错误: ${err.message}`); break; } 
+                const tokenEst = estimateTokens(full);
+                totalTokensUsed += tokenEst;
+                updateTokenDisplay();
+                if (currentMode === 'coding') {
+                    const hash = full.trim().substring(0,200);
+                    if (hash === lastOutputHash && hash.length>20) { consecutiveSame++; if (consecutiveSame>=2) { addConsoleLog(`⚠️ 检测到重复输出，终止`, 'warn'); addFeedbackMsg(`⚠️ 重复输出，任务终止`); break; } }
+                    else { consecutiveSame=0; lastOutputHash=hash; }
+                }
+                const {displayHtml,feedbacks,hasTaskDown,hasWaiting} = await parseAndExecuteTags(full); 
+                agentDiv.innerHTML = displayHtml || full;
+                conversationHistory.push({role:'assistant',content:full});
+                if(feedbacks.length) conversationHistory.push({role:'system',content:'反馈:\n'+feedbacks.join('\n')});
+                const duration = Date.now() - startTime;
+                addConsoleLog(`🤖 本次消耗 ≈ ${tokenEst} tokens | 累计 ${totalTokensUsed} tokens (耗时 ${duration}ms)`, 'info');
+                if(hasTaskDown){ addFeedbackMsg('🏁 任务完成'); break; }
                 if(hasWaiting){ 
                     document.getElementById('status').innerText='⏸️ 等待回复'; 
                     await new Promise(r=>{ waitingResolver=r; }); 
@@ -1254,7 +1072,8 @@
                         window._pendingReply=null; 
                     } 
                     document.getElementById('status').innerText='🔵 继续执行'; 
-                } 
+                }
+                if (currentMode !== 'coding' && !full.match(/<[a-z-]+/)) break;
             } 
             agentActive=false; 
             document.getElementById('status').innerText='⚪ 空闲'; 
@@ -1267,7 +1086,7 @@
             const clone=document.createElement('div'); 
             clone.style.position='absolute';clone.style.left='-9999px';clone.style.top='0';clone.style.width='800px';clone.style.background='white';clone.style.padding='30px'; 
             const header=document.createElement('div'); 
-            header.innerHTML=`<h1>MuYanCoding 对话</h1><p>${new Date().toLocaleString()}</p>`; 
+            header.innerHTML=`<h1>MuYanCoding 对话</h1><p>${new Date().toLocaleString()}</p><p>模式: ${currentMode === 'coding' ? 'CodingAgent' : 'Agent'} | 总计Token: ${totalTokensUsed}</p>`; 
             clone.appendChild(header); 
             const msgsClone=msgs.cloneNode(true); 
             for(let img of msgsClone.querySelectorAll('img')) try{ const c=await html2canvas(img); img.src=c.toDataURL(); }catch(e){} 
@@ -1288,18 +1107,9 @@
 
         setInterval(()=>{ 
             if(document.getElementById('status').innerText.includes('等待回复') && !document.getElementById('waitBox')){ 
-                const div=document.createElement('div'); 
-                div.id='waitBox'; 
-                div.innerHTML=`<input id="waitInput" placeholder="回复..." style="flex:1;background:transparent;border:none;color:white;"><button id="waitSend" class="primary">发送</button>`; 
+                const div=document.createElement('div'); div.id='waitBox'; div.innerHTML=`<input id="waitInput" placeholder="回复..." style="flex:1;background:transparent;border:none;color:white;"><button id="waitSend" class="primary">发送</button>`; 
                 document.getElementById('messages').appendChild(div); 
-                document.getElementById('waitSend').onclick=()=>{ 
-                    const val=document.getElementById('waitInput').value.trim(); 
-                    if(val && waitingResolver){ 
-                        window._pendingReply=val; 
-                        waitingResolver(); 
-                        div.remove(); 
-                    } 
-                }; 
+                document.getElementById('waitSend').onclick=()=>{ const val=document.getElementById('waitInput').value.trim(); if(val && waitingResolver){ window._pendingReply=val; waitingResolver(); div.remove(); } }; 
             } else if(!document.getElementById('status').innerText.includes('等待回复') && document.getElementById('waitBox')) document.getElementById('waitBox')?.remove(); 
         },200);
     })();
