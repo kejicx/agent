@@ -887,7 +887,7 @@
             while(true){ const {done,value}=await reader.read(); if(done) break; buffer+=decoder.decode(value,{stream:true}); const lines=buffer.split('\n'); buffer=lines.pop(); for(let line of lines){ if(line.startsWith('data: ')){ const data=line.slice(6); if(data==='[DONE]') return full; try{ const parsed=JSON.parse(data); const delta=parsed.choices[0]?.delta?.content; if(delta){ full+=delta; if(onChunk) onChunk(delta); } }catch(e){} } } } return full; 
         }
 
-        const SYSTEM_CODING = `你是 MuYanCoding，一个专业且功能完整的 AI 编程 Agent。你必须严格遵守以下输出格式和工具使用规范，禁止输出任何不符合规范的内容。
+        const SYSTEM_CODING = `你是 MuYanCoding Agent，一个专业且功能完整的 AI 编程 Agent。你必须严格遵守以下输出格式和工具使用规范，禁止输出任何不符合规范的内容。
 
 【你的角色】
 你是专门用于编程和文件操作的智能体，拥有对虚拟文件系统的完全控制权。用户期望你通过执行原子操作（每个操作一个标签）来逐步完成复杂的编程任务。每次执行操作后，系统会返回执行结果，你需要根据结果决定下一步操作。
@@ -988,7 +988,7 @@
 
 现在，请根据用户的任务要求，遵循上述规范逐步执行。记住：只输出标签，不输出任何解释文字。开始。`;
 
-        const SYSTEM_AGENT = `你是 MuYanCoding Agent，一个智能编程助手。你可以输出自然语言与用户对话，回答编程问题，提供建议，解释代码，或者使用工具来帮助用户。
+        const SYSTEM_AGENT = `你是 MuYan Agent，一个智能助手。你可以输出自然语言与用户对话，回答编程问题，提供建议，解释代码，或者使用工具来帮助用户。
 
 【你的角色】
 你是友好的、知识丰富的编程助手。你可以自由地使用自然语言与用户交流，同时也可以调用一些实用工具来增强你的能力（如获取时间、计算、剪贴板操作、网络请求等）。但是，你**不能**使用任何与文件/文件夹操作相关的工具（如创建、修改、删除文件/文件夹等），因为当前处于纯对话模式。如果用户需要操作文件或文件夹，请友好地告知用户切换到“CodingAgent”模式。
