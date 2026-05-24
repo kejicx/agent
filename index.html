@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>MuYanCoding｜编程Agent</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -342,6 +344,7 @@
             border-bottom: 1px solid #3a3a4b;
             display: flex;
             gap: 16px;
+            align-items: center;
         }
         .console-header span {
             cursor: pointer;
@@ -350,6 +353,14 @@
         .console-header span.active {
             opacity: 1;
             color: var(--muyan-green);
+        }
+        .console-header button {
+            background: #3a3a4b;
+            color: #e2e8f0;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            border-radius: 20px;
+            margin-left: auto;
         }
         .console-log {
             flex: 1;
@@ -361,6 +372,8 @@
             margin: 4px 0;
             border-left: 2px solid transparent;
             padding-left: 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
         .log-info { border-left-color: var(--muyan-green); }
         .log-error { border-left-color: var(--error); color: #fca5a5; }
@@ -369,6 +382,16 @@
         .log-time {
             color: #8892b0;
             margin-right: 10px;
+        }
+        .qr-img {
+            max-width: 200px;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+        .pdf-export-container {
+            background: white;
+            padding: 20px;
+            max-width: 100%;
         }
     </style>
 </head>
@@ -413,6 +436,7 @@
             <div class="console-area">
                 <div class="console-header">
                     <span id="consoleTabLog" class="active">📋 执行日志</span>
+                    <button id="exportPdfBtn" style="background:#4a4a5a;">📄 导出PDF</button>
                     <span id="consoleTabClear" style="margin-left:auto;">🗑️ 清空</span>
                 </div>
                 <div class="console-log" id="consoleLog"></div>
@@ -438,7 +462,6 @@
         let agentActive = false;
         let waitingResolver = null;
         let conversationHistory = [];
-        let shellCwd = "/";
         
         const fileTreeDiv = document.getElementById("fileTree");
         const editor = document.getElementById("editor");
@@ -460,6 +483,7 @@
         const manualPreviewBtn = document.getElementById("manualPreviewBtn");
         const consoleLogDiv = document.getElementById("consoleLog");
         const consoleTabClear = document.getElementById("consoleTabClear");
+        const exportPdfBtn = document.getElementById("exportPdfBtn");
         
         function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]); }
         
@@ -554,16 +578,237 @@
             let feedbacks = [];
             displayHtml = displayHtml.replace(/<thinking>([\s\S]*?)<\/thinking>/g, `<div class="thinking">💭 ${escapeHtml("$1")}</div>`);
             let m;
+            
             const fileCreateRegex = /<file-create\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-create>/g;
             while ((m = fileCreateRegex.exec(fullText)) !== null) { let r = await executeFileOperation("create", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
             const fileUpdateRegex = /<file-update\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-update>/g;
             while ((m = fileUpdateRegex.exec(fullText)) !== null) { let r = await executeFileOperation("update", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
             const fileDeleteRegex = /<file-delete\s+path="([^"]+)"\s*\/>/g;
             while ((m = fileDeleteRegex.exec(fullText)) !== null) { let r = await executeFileOperation("delete", m[1]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-            const hasTaskDown = fullText.includes("<task-down>") || fullText.includes("<task-done/>");
-            const hasWaiting = fullText.includes("<waiting>") || fullText.includes("<wait-user/>");
-            if (hasTaskDown) displayHtml = displayHtml.replace(/<task-down>|<task-done\/>/g, '<div class="task-done">✅ 任务完成</div>');
-            if (hasWaiting) displayHtml = displayHtml.replace(/<waiting>|<wait-user\/>/g, '<div class="waiting-pill">⏳ 等待用户回复</div>');
+            const getTimeRegex = /<get-time\s*\/>/g;
+            if (getTimeRegex.test(fullText)) {
+                let now = new Date();
+                let beijingTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+                let timeStr = beijingTime.toISOString().replace('T', ' ').slice(0, 19);
+                let result = `✅ 当前时间: ${timeStr}`;
+                feedbacks.push(result);
+                addFeedbackMsg(result);
+                displayHtml = displayHtml.replace(getTimeRegex, `<div class="thinking">⏱️ ${timeStr}</div>`);
+            }
+            const calcRegex = /<calc>([\s\S]*?)<\/calc>/g;
+            while ((m = calcRegex.exec(fullText)) !== null) {
+                try {
+                    let expr = m[1];
+                    let result = eval(expr);
+                    let resultMsg = `✅ 计算结果: ${expr} = ${result}`;
+                    feedbacks.push(resultMsg);
+                    addFeedbackMsg(resultMsg);
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">🧮 ${resultMsg}</div>`);
+                } catch(e) {
+                    let errMsg = `❌ 计算错误: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const getClipRegex = /<get-clipboard\s*\/>/g;
+            if (getClipRegex.test(fullText)) {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    let result = `📋 剪贴板内容: ${text.substring(0, 200)}${text.length > 200 ? '...' : ''}`;
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(getClipRegex, `<div class="thinking">📋 ${escapeHtml(result)}</div>`);
+                } catch(e) {
+                    let errMsg = `❌ 读取剪贴板失败: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const setClipRegex = /<set-clipboard>([\s\S]*?)<\/set-clipboard>/g;
+            while ((m = setClipRegex.exec(fullText)) !== null) {
+                try {
+                    await navigator.clipboard.writeText(m[1]);
+                    let result = `✅ 已写入剪贴板: ${m[1].substring(0, 100)}${m[1].length > 100 ? '...' : ''}`;
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">📋 ${escapeHtml(result)}</div>`);
+                } catch(e) {
+                    let errMsg = `❌ 写入剪贴板失败: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const uuidRegex = /<uuid-generate\s*\/>/g;
+            if (uuidRegex.test(fullText)) {
+                const uuid = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    let r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+                let result = `🔑 新UUID: ${uuid}`;
+                feedbacks.push(result);
+                addFeedbackMsg(result);
+                displayHtml = displayHtml.replace(uuidRegex, `<div class="thinking">🔑 ${escapeHtml(result)}</div>`);
+            }
+            
+            const b64encodeRegex = /<base64-encode>([\s\S]*?)<\/base64-encode>/g;
+            while ((m = b64encodeRegex.exec(fullText)) !== null) {
+                try {
+                    let encoded = btoa(unescape(encodeURIComponent(m[1])));
+                    let result = `✅ Base64编码: ${encoded.substring(0, 150)}${encoded.length > 150 ? '...' : ''}`;
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔐 ${escapeHtml(result)}</div>`);
+                } catch(e) {
+                    let errMsg = `❌ Base64编码失败: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const b64decodeRegex = /<base64-decode>([\s\S]*?)<\/base64-decode>/g;
+            while ((m = b64decodeRegex.exec(fullText)) !== null) {
+                try {
+                    let decoded = decodeURIComponent(escape(atob(m[1])));
+                    let result = `✅ Base64解码: ${decoded.substring(0, 200)}${decoded.length > 200 ? '...' : ''}`;
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔓 ${escapeHtml(result)}</div>`);
+                } catch(e) {
+                    let errMsg = `❌ Base64解码失败: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const fetchRegex = /<fetch-url\s+url="([^"]+)"\s*\/>/g;
+            while ((m = fetchRegex.exec(fullText)) !== null) {
+                let url = m[1];
+                try {
+                    let controller = new AbortController();
+                    let timeoutId = setTimeout(() => controller.abort(), 10000);
+                    let resp = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    let text = await resp.text();
+                    let truncated = text.substring(0, 500);
+                    let result = `✅ 获取 ${url} 成功 (${resp.status})，内容预览: ${truncated}${text.length > 500 ? '...' : ''}`;
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">🌐 ${escapeHtml(result)}</div>`);
+                } catch(e) {
+                    let errMsg = `❌ 获取URL失败 ${url}: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const deviceRegex = /<detect-device\s*\/>/g;
+            if (deviceRegex.test(fullText)) {
+                let info = {
+                    userAgent: navigator.userAgent,
+                    语言: navigator.language,
+                    平台: navigator.platform,
+                    屏幕: `${window.screen.width}x${window.screen.height}`,
+                    视口: `${window.innerWidth}x${window.innerHeight}`,
+                    时间: new Date().toString()
+                };
+                let infoStr = JSON.stringify(info, null, 2);
+                let result = `🖥️ 设备信息:\n${infoStr}`;
+                feedbacks.push(result);
+                addFeedbackMsg(result);
+                displayHtml = displayHtml.replace(deviceRegex, `<div class="thinking">🖥️ <pre>${escapeHtml(infoStr)}</pre></div>`);
+            }
+            
+            const notifyRegex = /<show-notification\s+title="([^"]*)"\s+body="([^"]*)"\s*\/>/g;
+            while ((m = notifyRegex.exec(fullText)) !== null) {
+                let title = m[1] || "MuYanCoding";
+                let body = m[2] || "";
+                try {
+                    if (Notification.permission === "granted") {
+                        new Notification(title, { body });
+                        let result = `🔔 通知已发送: ${title} - ${body}`;
+                        feedbacks.push(result);
+                        addFeedbackMsg(result);
+                    } else if (Notification.permission !== "denied") {
+                        let perm = await Notification.requestPermission();
+                        if (perm === "granted") {
+                            new Notification(title, { body });
+                            let result = `🔔 通知授权成功并已发送: ${title} - ${body}`;
+                            feedbacks.push(result);
+                            addFeedbackMsg(result);
+                        } else {
+                            let result = `❌ 通知权限被拒绝`;
+                            feedbacks.push(result);
+                            addFeedbackMsg(result);
+                        }
+                    } else {
+                        let result = `❌ 通知权限已被拒绝，无法发送`;
+                        feedbacks.push(result);
+                        addFeedbackMsg(result);
+                    }
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔔 通知已请求发送</div>`);
+                } catch(e) {
+                    let errMsg = `❌ 发送通知失败: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const qrRegex = /<qr-code(?:\s+size="(\d+)")?>([\s\S]*?)<\/qr-code>/g;
+            while ((m = qrRegex.exec(fullText)) !== null) {
+                let size = m[1] ? parseInt(m[1]) : 150;
+                let qrData = m[2].trim();
+                if (qrData) {
+                    let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(qrData)}`;
+                    let imgHtml = `<img src="${qrUrl}" alt="QR Code" class="qr-img" style="max-width:${size}px">`;
+                    let result = `📱 二维码已生成，内容: ${qrData.substring(0, 100)}${qrData.length>100?'...':''}`;
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">📱 ${escapeHtml(result)}<br>${imgHtml}</div>`);
+                } else {
+                    let errMsg = `❌ 二维码内容为空`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const textStatsRegex = /<text-statistics>([\s\S]*?)<\/text-statistics>/g;
+            while ((m = textStatsRegex.exec(fullText)) !== null) {
+                let text = m[1];
+                let chars = text.length;
+                let words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+                let lines = text.split(/\r?\n/).length;
+                let readingTime = Math.ceil(words / 200);
+                let result = `📊 文本统计: 字符数=${chars}, 单词数=${words}, 行数=${lines}, 预计阅读时间=${readingTime}分钟`;
+                feedbacks.push(result);
+                addFeedbackMsg(result);
+                displayHtml = displayHtml.replace(m[0], `<div class="thinking">📊 ${escapeHtml(result)}</div>`);
+            }
+            
+            const jsonValidatorRegex = /<json-validator>([\s\S]*?)<\/json-validator>/g;
+            while ((m = jsonValidatorRegex.exec(fullText)) !== null) {
+                let jsonStr = m[1];
+                try {
+                    let parsed = JSON.parse(jsonStr);
+                    let formatted = JSON.stringify(parsed, null, 2);
+                    let result = `✅ JSON 有效，格式化结果:\n${formatted.substring(0, 500)}${formatted.length>500?'...':''}`;
+                    feedbacks.push(result);
+                    addFeedbackMsg(result);
+                    displayHtml = displayHtml.replace(m[0], `<div class="thinking">📐 <pre>${escapeHtml(formatted)}</pre></div>`);
+                } catch(e) {
+                    let errMsg = `❌ JSON 无效: ${e.message}`;
+                    feedbacks.push(errMsg);
+                    addFeedbackMsg(errMsg);
+                }
+            }
+            
+            const taskDownRegex = /<task-down\s*\/?>|<task-done\s*\/?>/;
+            const hasTaskDown = taskDownRegex.test(fullText);
+            const hasWaiting = /<waiting>|<wait-user\s*\/?>/.test(fullText);
+            if (hasTaskDown) displayHtml = displayHtml.replace(taskDownRegex, '<div class="task-done">✅ 任务完成</div>');
+            if (hasWaiting) displayHtml = displayHtml.replace(/<waiting>|<wait-user\s*\/?>/, '<div class="waiting-pill">⏳ 等待用户回复</div>');
             return { displayHtml, feedbacks, hasWaiting, hasTaskDown };
         }
         
@@ -611,86 +856,113 @@
 
 【可用工具标签完整列表及详细说明】
 
-一、文件与工作台操作（支持相对路径，基于工作台根目录）
-- <file-create path="文件路径">文件内容</file-create>
-  说明：在工作台创建新文件，路径可以是 "index.html" 或 "src/app.js"。内容为纯文本。如果文件已存在则失败并返回错误。
-  示例：<file-create path="hello.txt">你好世界</file-create>
+一、文件与工作台操作
+- <file-create path="文件路径">文件内容</file-create> ：创建新文件
+- <file-update path="文件路径">新的完整内容</file-update> ：更新或覆盖文件
+- <file-delete path="文件路径"/> ：删除文件
+- <get-time/> ：返回当前系统时间（北京时间）
+- <calc>数学表达式</calc> ：计算数学表达式
+- <highlight>重要文本</highlight> ：高亮显示
+- <link>url,显示文字</link> ：创建链接
+- <code-html>代码</code-html> 或 <code>通用代码</code> ：展示代码块
+- <html>完整HTML代码</html> ：渲染预览HTML页面
+- <check-code lang="语言">代码片段</check-code> ：静态代码检查
 
-- <file-update path="文件路径">新的完整内容</file-update>
-  说明：更新或覆盖已存在的文件内容。如果文件不存在则自动创建。
-
-- <file-delete path="文件路径"/>
-  说明：删除指定文件。注意路径必须准确。
-
-- <get-time/>
-  说明：返回当前系统时间（北京时间，格式：YYYY/MM/DD HH:MM:SS）。
-
-- <calc>数学表达式</calc>
-  说明：计算数学表达式，支持 + - * / 和括号。例如 <calc>(100+200)*3</calc>。
-
-- <highlight>重要文本</highlight>
-  说明：在消息中高亮显示内容（用于强调）。
-
-- <link>url,显示文字</link>
-  说明：创建可点击链接。示例：<link>https://example.com,点击这里</link>
-
-- <code-html>HTML/JS/CSS代码</code-html> 或 <code>通用代码</code>
-  说明：展示代码块，自动语法高亮。
-
-- <html>完整HTML代码</html>
-  说明：渲染并预览 HTML 页面（会自动弹出预览窗口）。适用于提供可视化结果。
-
-二、编码辅助
-- <check-code lang="语言">代码片段</check-code>
-  说明：静态检查代码常见问题（如 console.log, alert, eval 等）。支持的语言：javascript, python, html, css。
-  示例：<check-code lang="javascript">console.log("test");</check-code>
+二、新增实用工具（共10个，真实可用）
+- <get-clipboard/> ：读取系统剪贴板内容（需用户授权）
+- <set-clipboard>文本内容</set-clipboard> ：将文本写入系统剪贴板
+- <uuid-generate/> ：生成符合 UUID v4 标准的唯一标识符
+- <base64-encode>文本</base64-encode> ：对文本进行 Base64 编码（支持中文）
+- <base64-decode>base64字符串</base64-decode> ：解码 Base64 字符串
+- <fetch-url url="https://..."/> ：发起 HTTP GET 请求，获取 URL 内容（最多返回前500字符）
+- <detect-device/> ：检测当前设备信息（浏览器、屏幕、平台等）
+- <show-notification title="标题" body="内容"/> ：发送浏览器桌面通知（首次会请求权限）
+- <qr-code size="150">文本内容</qr-code> ：生成包含文本内容的二维码图片（尺寸可选，默认150px）
+- <text-statistics>文本内容</text-statistics> ：统计文本的字符数、单词数、行数和预估阅读时间
+- <json-validator>JSON字符串</json-validator> ：验证并格式化 JSON 字符串，返回可读格式
 
 三、任务管理
-- <task-down> 或 <task-done/>
-  说明：标记整个任务完成，Agent 将停止执行。
-
-- <waiting> 或 <wait-user/>
-  说明：暂停任务并等待用户输入。用户回复后系统会将用户消息作为新的输入继续对话。
+- <task-down> 或 <task-done/> ：标记任务完成
+- <waiting> 或 <wait-user/> ：暂停并等待用户输入
 
 【输出格式强制要求】
 - 每次只能输出一个功能标签（可以前面加一个 <thinking> 标签）。
-- 示例正确的输出：
-  <thinking>用户需要创建一个HTML文件，我先创建文件。</thinking>
-  <file-create path="index.html"><html><body><h1>Hello</h1></body></html></file-create>
-- 禁止输出类似 "好的，我来帮你创建文件" 这样的自然语言。只有标签。
+- 示例正确输出：
+  <thinking>用户需要生成二维码</thinking>
+  <qr-code size="200">https://example.com</qr-code>
+- 禁止输出自然语言解释。只有标签。
 - 禁止在同一个回复中输出两个不同的功能标签。
 
 【任务执行流程】
 1. 用户提出需求。
 2. 你根据需求，输出一个标签执行一个操作。
-3. 系统执行该操作并返回反馈（成功/失败及详细信息）。
+3. 系统执行该操作并返回反馈。
 4. 你根据反馈决定下一步，再次输出一个标签。
 5. 重复直到任务完成，输出 <task-down> 结束。
 
 【注意事项】
-- 工作台文件系统是持久的，所有文件写入、删除、更新都会真实保存。
-- 如果操作失败，请根据错误反馈调整参数后重试。
-- 如果连续两次无有效操作（如重复相同输出），任务会自动停止。
-- 不要编造不存在的工具或标签。只使用上述列出的标签。
+- 所有工具都真实可用，会立即执行并返回结果。
+- 剪贴板和通知功能可能需要用户授权，若失败请提示用户手动允许。
+- fetch-url 请求有10秒超时，仅支持 HTTPS 或同源地址以避免 CORS。
+- 二维码使用公共 API，无需额外依赖。
+- 不要编造不存在的工具。
 
 现在，请根据用户的任务要求，遵循上述规范逐步执行。记住：只输出标签，不输出任何解释文字。开始。`;
+        
+        function extractToolName(fullText) {
+            if (/<file-create/.test(fullText)) return 'file-create';
+            if (/<file-update/.test(fullText)) return 'file-update';
+            if (/<file-delete/.test(fullText)) return 'file-delete';
+            if (/<get-time/.test(fullText)) return 'get-time';
+            if (/<calc/.test(fullText)) return 'calc';
+            if (/<check-code/.test(fullText)) return 'check-code';
+            if (/<html/.test(fullText)) return 'html';
+            if (/<get-clipboard/.test(fullText)) return 'get-clipboard';
+            if (/<set-clipboard/.test(fullText)) return 'set-clipboard';
+            if (/<uuid-generate/.test(fullText)) return 'uuid-generate';
+            if (/<base64-encode/.test(fullText)) return 'base64-encode';
+            if (/<base64-decode/.test(fullText)) return 'base64-decode';
+            if (/<fetch-url/.test(fullText)) return 'fetch-url';
+            if (/<detect-device/.test(fullText)) return 'detect-device';
+            if (/<show-notification/.test(fullText)) return 'show-notification';
+            if (/<qr-code/.test(fullText)) return 'qr-code';
+            if (/<text-statistics/.test(fullText)) return 'text-statistics';
+            if (/<json-validator/.test(fullText)) return 'json-validator';
+            if (/<task-down|<task-done/.test(fullText)) return 'task-down';
+            if (/<waiting|<wait-user/.test(fullText)) return 'waiting';
+            return 'unknown';
+        }
         
         async function runAgent(initialMsg) {
             if (agentActive) { addFeedbackMsg("已有任务运行中"); return; }
             agentActive = true; statusSpan.innerText = "🔵 运行中"; addUserMsg(initialMsg);
             conversationHistory = [{ role:"system", content: SYSTEM_PROMPT_FULL }, { role:"user", content: initialMsg }];
-            let step=0, MAX_STEPS=15;
+            let step=0, MAX_STEPS=20;
             while(agentActive && step<MAX_STEPS){
                 step++; statusSpan.innerText=`🔵 思考中 (${step})`;
                 let currentReply="", agentMsgDiv=addAgentMsgWithStream();
                 let fullReply = "";
+                const startTime = Date.now();
                 try { fullReply = await streamDeepSeek(conversationHistory, (chunk)=>{ currentReply+=chunk; agentMsgDiv.innerHTML+=chunk; messagesDiv.scrollTop=messagesDiv.scrollHeight; }); } 
-                catch(err) { addFeedbackMsg(`❌ API调用失败: ${err.message}`); break; }
+                catch(err) { addFeedbackMsg(`❌ API调用失败: ${err.message}`); addConsoleLog(`API错误: ${err.message}`, "error"); break; }
                 if(!agentActive) break;
+                const duration = Date.now() - startTime;
                 const { displayHtml, feedbacks, hasTaskDown, hasWaiting } = await parseAndExecuteTags(fullReply);
                 agentMsgDiv.innerHTML = displayHtml;
                 conversationHistory.push({ role:"assistant", content: fullReply });
                 if(feedbacks.length) conversationHistory.push({ role:"system", content: "系统反馈:\n"+feedbacks.join("\n") });
+                let toolName = extractToolName(fullReply);
+                let resultSummary = "";
+                if (feedbacks.length > 0) {
+                    resultSummary = feedbacks[0];
+                } else if (hasTaskDown) {
+                    resultSummary = "任务完成";
+                } else if (hasWaiting) {
+                    resultSummary = "等待用户回复";
+                } else {
+                    resultSummary = "无操作";
+                }
+                addConsoleLog(`🔧 工具: ${toolName} → ${resultSummary} (耗时 ${duration}ms)`, "info");
                 if(hasTaskDown){ addFeedbackMsg("🏁 任务完成"); break; }
                 if(hasWaiting){
                     statusSpan.innerText="⏸️ 等待回复";
@@ -699,7 +971,82 @@
                     statusSpan.innerText="🔵 继续执行";
                 }
             }
+            if(step>=MAX_STEPS && agentActive) addConsoleLog("达到最大执行步骤，任务自动停止", "warn");
             agentActive = false; statusSpan.innerText = "⚪ 空闲";
+        }
+        
+        async function exportToPdf() {
+            const messagesContainer = document.getElementById("messages");
+            if (!messagesContainer || messagesContainer.children.length === 0) {
+                addFeedbackMsg("没有对话内容可导出");
+                return;
+            }
+            addFeedbackMsg("正在生成PDF，请稍候...");
+            const originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = "auto";
+            const cloneContainer = document.createElement("div");
+            cloneContainer.style.position = "absolute";
+            cloneContainer.style.left = "-9999px";
+            cloneContainer.style.top = "0";
+            cloneContainer.style.width = "800px";
+            cloneContainer.style.background = "white";
+            cloneContainer.style.padding = "30px";
+            cloneContainer.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+            const headerDiv = document.createElement("div");
+            headerDiv.style.textAlign = "center";
+            headerDiv.style.marginBottom = "30px";
+            headerDiv.style.borderBottom = "2px solid #a5d296";
+            headerDiv.style.paddingBottom = "15px";
+            headerDiv.innerHTML = `
+                <h1 style="color:#1F2937; font-size:24px;">💚 MuYanCoding 对话记录</h1>
+                <p style="color:#4B5563; margin-top:8px;">导出时间：${new Date().toLocaleString()}</p>
+            `;
+            cloneContainer.appendChild(headerDiv);
+            const messagesClone = messagesContainer.cloneNode(true);
+            messagesClone.style.display = "flex";
+            messagesClone.style.flexDirection = "column";
+            messagesClone.style.gap = "16px";
+            for (let img of messagesClone.querySelectorAll('img')) {
+                try {
+                    const canvas = await html2canvas(img);
+                    img.src = canvas.toDataURL();
+                } catch(e) {}
+            }
+            cloneContainer.appendChild(messagesClone);
+            document.body.appendChild(cloneContainer);
+            try {
+                const canvas = await html2canvas(cloneContainer, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true
+                });
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const imgWidth = 210;
+                const pageHeight = 297;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let pdf = new jsPDF('p', 'mm', 'a4');
+                let position = 0;
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                let heightLeft = imgHeight - pageHeight;
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                pdf.save(`muyancoding_conversation_${Date.now()}.pdf`);
+                addFeedbackMsg("PDF已下载");
+                addConsoleLog("对话已成功导出为PDF", "success");
+            } catch(err) {
+                console.error(err);
+                addFeedbackMsg(`导出失败: ${err.message}`);
+                addConsoleLog(`PDF导出错误: ${err.message}`, "error");
+            } finally {
+                document.body.removeChild(cloneContainer);
+                document.body.style.overflow = originalOverflow;
+            }
         }
         
         function bindEvents() {
@@ -713,6 +1060,7 @@
             sendBtn.onclick = async () => { if (agentActive) { addFeedbackMsg("请先停止当前任务"); return; } let text = promptInput.value.trim(); if (!text) return; promptInput.value = ""; await runAgent(text); };
             stopBtn.onclick = () => { if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; addFeedbackMsg("⏹️ 已停止"); addConsoleLog("用户手动停止任务", "warn"); statusSpan.innerText = "⚪ 已停止"; } };
             consoleTabClear.onclick = () => { consoleLogDiv.innerHTML = ""; addConsoleLog("控制台已清空", "info"); };
+            exportPdfBtn.onclick = exportToPdf;
         }
         
         function init() {
@@ -720,7 +1068,7 @@
             renderFileTree();
             bindEvents();
             addFeedbackMsg("欢迎使用MuYanCoding｜专业的编程Agent");
-            addConsoleLog("MuYanCoding 已启动，控制台就绪，系统提示词已完整加载", "success");
+            addConsoleLog("MuYanCoding 已启动，控制台就绪，已加载10个新工具，支持导出PDF下载", "success");
             setInterval(() => {
                 if (statusSpan.innerText.includes("等待回复") && !document.getElementById("waitBox")) {
                     let div = document.createElement("div"); div.id = "waitBox"; div.style.cssText = "position:sticky; bottom:10px; background:white; border:1px solid #E5E7EB; border-radius:40px; padding:6px 12px; display:flex; gap:10px; margin:8px 0;";
