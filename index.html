@@ -430,486 +430,309 @@
 </div>
 
 <script>
-(function(){
-    let virtualFs = {};
-    let currentFile = null;
-    let apiKey = localStorage.getItem("muyan_api") || "";
-    let selectedModel = "deepseek-chat";
-    let agentActive = false;
-    let waitingResolver = null;
-    let conversationHistory = [];
-    let lastReplyHash = "";
-    let consecutiveSameCount = 0;
-    let noOperationCount = 0;
-    let shellCwd = "/";
-    let planStore = { root: null, subTasks: [] };
-
-    const fileTreeDiv = document.getElementById("fileTree");
-    const editor = document.getElementById("editor");
-    const curFileSpan = document.getElementById("curFile");
-    const messagesDiv = document.getElementById("messages");
-    const promptInput = document.getElementById("prompt");
-    const sendBtn = document.getElementById("sendBtn");
-    const stopBtn = document.getElementById("stopBtn");
-    const statusSpan = document.getElementById("status");
-    const newFileBtn = document.getElementById("newFileBtn");
-    const saveFileBtn = document.getElementById("saveFileBtn");
-    const downloadBtn = document.getElementById("downloadBtn");
-    const previewModal = document.getElementById("previewModal");
-    const previewFrame = document.getElementById("previewFrame");
-    const closePreview = document.getElementById("closePreview");
-    const apiKeyInput = document.getElementById("apiKey");
-    const modelSelect = document.getElementById("modelSelect");
-    const saveKeyBtn = document.getElementById("saveKeyBtn");
-    const manualPreviewBtn = document.getElementById("manualPreviewBtn");
-    const consoleLogDiv = document.getElementById("consoleLog");
-    const consoleTabClear = document.getElementById("consoleTabClear");
-
-    function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]); }
-
-    function addConsoleLog(message, type = "info") {
-        const entry = document.createElement("div");
-        entry.className = `log-entry log-${type}`;
-        const time = new Date().toLocaleTimeString();
-        entry.innerHTML = `<span class="log-time">[${time}]</span> ${escapeHtml(message)}`;
-        consoleLogDiv.appendChild(entry);
-        entry.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        console.log(`[${type}] ${message}`);
-    }
-
-    function addFeedbackMsg(text) {
-        let div = document.createElement("div");
-        div.className = "msg feedback-msg";
-        div.innerHTML = `🔧 ${escapeHtml(text)}`;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    function addUserMsg(text) {
-        let div = document.createElement("div");
-        div.className = "msg user-msg";
-        div.innerHTML = `<div>${escapeHtml(text)}</div>`;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    function addAgentMsgWithStream() {
-        let div = document.createElement("div");
-        div.className = "msg agent-msg";
-        div.innerHTML = "";
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        return div;
-    }
-
-    function renderFileTree() {
-        fileTreeDiv.innerHTML = "";
-        if (Object.keys(virtualFs).length === 0) {
-            let emptyDiv = document.createElement("div");
-            emptyDiv.style.padding = "20px";
-            emptyDiv.style.textAlign = "center";
-            emptyDiv.style.color = "var(--text-secondary)";
-            emptyDiv.innerText = "暂无文件，点击 + 新建";
-            fileTreeDiv.appendChild(emptyDiv);
-        } else {
-            Object.keys(virtualFs).sort().forEach(p => {
-                const div = document.createElement("div");
-                div.className = "file-item" + (currentFile === p ? " active" : "");
-                div.innerHTML = `<span>📄 ${p}</span><button class="delBtn" data-path="${p}" style="background:none; border:none; color:#EF4444;">🗑️</button>`;
-                div.onclick = (e) => { if (e.target.classList.contains("delBtn")) return; selectFile(p); };
-                const del = div.querySelector(".delBtn");
-                del.onclick = (e) => { e.stopPropagation(); deleteFile(p); };
-                fileTreeDiv.appendChild(div);
-            });
+    (function() {
+        let virtualFs = {};
+        let currentFile = null;
+        let apiKey = localStorage.getItem("muyan_api") || "";
+        let selectedModel = "deepseek-chat";
+        let agentActive = false;
+        let waitingResolver = null;
+        let conversationHistory = [];
+        let shellCwd = "/";
+        
+        const fileTreeDiv = document.getElementById("fileTree");
+        const editor = document.getElementById("editor");
+        const curFileSpan = document.getElementById("curFile");
+        const messagesDiv = document.getElementById("messages");
+        const promptInput = document.getElementById("prompt");
+        const sendBtn = document.getElementById("sendBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const statusSpan = document.getElementById("status");
+        const newFileBtn = document.getElementById("newFileBtn");
+        const saveFileBtn = document.getElementById("saveFileBtn");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const previewModal = document.getElementById("previewModal");
+        const previewFrame = document.getElementById("previewFrame");
+        const closePreview = document.getElementById("closePreview");
+        const apiKeyInput = document.getElementById("apiKey");
+        const modelSelect = document.getElementById("modelSelect");
+        const saveKeyBtn = document.getElementById("saveKeyBtn");
+        const manualPreviewBtn = document.getElementById("manualPreviewBtn");
+        const consoleLogDiv = document.getElementById("consoleLog");
+        const consoleTabClear = document.getElementById("consoleTabClear");
+        
+        function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]); }
+        
+        function addConsoleLog(message, type = "info") {
+            const entry = document.createElement("div");
+            entry.className = `log-entry log-${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${escapeHtml(message)}`;
+            consoleLogDiv.appendChild(entry);
+            entry.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
-        if (currentFile && virtualFs[currentFile]) editor.value = virtualFs[currentFile].content;
-        else editor.value = "";
-        curFileSpan.innerText = currentFile || "未选择";
-        if (currentFile && (currentFile.endsWith(".html") || currentFile.endsWith(".htm"))) manualPreviewBtn.classList.remove("hidden");
-        else manualPreviewBtn.classList.add("hidden");
-    }
-
-    function selectFile(p) { currentFile = p; editor.value = virtualFs[p].content; curFileSpan.innerText = p; renderFileTree(); addConsoleLog(`打开文件: ${p}`, "info"); }
-    function saveCurrent() {
-        if (currentFile && virtualFs[currentFile]) { virtualFs[currentFile].content = editor.value; addFeedbackMsg(`💾 已保存 ${currentFile}`); addConsoleLog(`保存文件: ${currentFile}`, "success"); renderFileTree(); }
-        else if (currentFile && !virtualFs[currentFile]) { virtualFs[currentFile] = { content: editor.value }; addFeedbackMsg(`📄 创建并保存 ${currentFile}`); renderFileTree(); }
-        else addFeedbackMsg("请先选择或创建文件");
-    }
-    function deleteFile(p) {
-        if (confirm(`删除 ${p}?`)) {
-            delete virtualFs[p];
-            if (currentFile === p) { let keys = Object.keys(virtualFs); currentFile = keys[0] || null; if (currentFile) editor.value = virtualFs[currentFile].content; else editor.value = ""; }
-            renderFileTree(); addFeedbackMsg(`🗑️ 已删除 ${p}`); addConsoleLog(`删除文件: ${p}`, "warn");
+        
+        function addFeedbackMsg(text) {
+            let div = document.createElement("div");
+            div.className = "msg feedback-msg";
+            div.innerHTML = `🔧 ${escapeHtml(text)}`;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
-    }
-    function newFile() { let name = prompt("文件名:", "newfile.txt"); if (name && !virtualFs[name]) { virtualFs[name] = { content: "" }; currentFile = name; editor.value = ""; renderFileTree(); addFeedbackMsg(`📄 创建 ${name}`); } else if (name) alert("文件已存在"); }
-
-    async function cloneRepo(url, destDir = null) {
-        addConsoleLog(`克隆仓库: ${url}`, "info");
-        const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-        if (!match) return "❌ 目前仅支持 GitHub 公共仓库克隆 (格式: https://github.com/owner/repo)";
-        const owner = match[1], repo = match[2];
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
-        try {
-            const resp = await fetch(apiUrl);
-            if (!resp.ok) return `❌ GitHub API 失败: ${resp.status}`;
-            const data = await resp.json();
-            const baseDir = destDir || repo;
-            if (!virtualFs[baseDir] && !baseDir.endsWith('/')) virtualFs[baseDir] = { content: "" };
-            let fileCount = 0;
-            for (const item of data.tree) {
-                if (item.type === "blob") {
-                    const filePath = `${baseDir}/${item.path}`;
-                    const fileResp = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${item.path}`);
-                    if (fileResp.ok) {
-                        const content = await fileResp.text();
-                        virtualFs[filePath] = { content };
-                        fileCount++;
-                    }
-                }
+        
+        function addUserMsg(text) {
+            let div = document.createElement("div");
+            div.className = "msg user-msg";
+            div.innerHTML = `<div>${escapeHtml(text)}</div>`;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function addAgentMsgWithStream() {
+            let div = document.createElement("div");
+            div.className = "msg agent-msg";
+            div.innerHTML = "";
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return div;
+        }
+        
+        function renderFileTree() {
+            fileTreeDiv.innerHTML = "";
+            if (Object.keys(virtualFs).length === 0) {
+                let emptyDiv = document.createElement("div");
+                emptyDiv.style.padding = "20px";
+                emptyDiv.style.textAlign = "center";
+                emptyDiv.style.color = "var(--text-secondary)";
+                emptyDiv.innerText = "暂无文件，点击 + 新建";
+                fileTreeDiv.appendChild(emptyDiv);
+            } else {
+                Object.keys(virtualFs).sort().forEach(p => {
+                    const div = document.createElement("div");
+                    div.className = "file-item" + (currentFile === p ? " active" : "");
+                    div.innerHTML = `<span>📄 ${p}</span><button class="delBtn" data-path="${p}" style="background:none; border:none; color:#EF4444;">🗑️</button>`;
+                    div.onclick = (e) => { if (e.target.classList.contains("delBtn")) return; selectFile(p); };
+                    const del = div.querySelector(".delBtn");
+                    del.onclick = (e) => { e.stopPropagation(); deleteFile(p); };
+                    fileTreeDiv.appendChild(div);
+                });
             }
-            renderFileTree();
-            return `✅ 克隆成功，共 ${fileCount} 个文件保存至目录 ${baseDir}/`;
-        } catch(e) { return `❌ 克隆失败: ${e.message}`; }
-    }
-
-    async function sendAttachments(pathsStr) {
-        const paths = pathsStr.split(',').map(p => p.trim());
-        let result = [];
-        for (const p of paths) {
-            if (virtualFs[p]) {
-                const blob = new Blob([virtualFs[p].content], {type: "application/octet-stream"});
-                const url = URL.createObjectURL(blob);
-                result.push(`<a href="${url}" download="${p}">📎 ${p}</a>`);
-            } else result.push(`❌ 文件不存在: ${p}`);
+            if (currentFile && virtualFs[currentFile]) editor.value = virtualFs[currentFile].content;
+            else editor.value = "";
+            curFileSpan.innerText = currentFile || "未选择";
+            if (currentFile && (currentFile.endsWith(".html") || currentFile.endsWith(".htm"))) manualPreviewBtn.classList.remove("hidden");
+            else manualPreviewBtn.classList.add("hidden");
         }
-        return result.length ? `附件已就绪: ${result.join(' ')}` : "无有效附件";
-    }
-
-    async function webSearch(query) {
-        try {
-            let resp = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`);
-            let data = await resp.json();
-            let results = data.RelatedTopics?.slice(0,3).map(t=>t.Text).filter(t=>t)||[];
-            return results.length ? "搜索结果:\n"+results.join("\n") : "未找到结果";
-        } catch(e){ return `搜索失败:${e.message}`; }
-    }
-
-    async function shellExecute(command) {
-        addConsoleLog(`Shell: ${command}`, "info");
-        const parts = command.trim().split(/\s+/);
-        const cmd = parts[0];
-        const args = parts.slice(1);
-        const resolvePath = (p) => { if(p.startsWith('/')) return p; const cur = shellCwd === '/' ? '' : shellCwd; return (cur + '/' + p).replace(/\/+/g,'/'); };
-        let output = "";
-        if (cmd === "ls") {
-            const targetDir = args[0] ? resolvePath(args[0]) : shellCwd;
-            const files = Object.keys(virtualFs).filter(f => f.startsWith(targetDir === '/' ? '' : targetDir) && f !== targetDir);
-            const dirContent = [...new Set(files.map(f => f.split('/').slice(targetDir === '/' ? 1 : targetDir.split('/').length).filter(p=>p).join('/') || '.'))];
-            output = dirContent.length ? dirContent.join('\n') : "(空目录)";
-        } else if (cmd === "pwd") output = shellCwd;
-        else if (cmd === "cd") {
-            if (!args[0]) shellCwd = "/";
-            else { let newPath = args[0].startsWith('/') ? args[0] : (shellCwd === '/' ? '/'+args[0] : shellCwd+'/'+args[0]); newPath = newPath.replace(/\/+/g,'/'); if (Object.keys(virtualFs).some(f => f.startsWith(newPath) || f === newPath)) shellCwd = newPath; else output = `cd: 目录不存在: ${args[0]}`; }
-        } else if (cmd === "cat") {
-            const path = resolvePath(args[0]);
-            if (virtualFs[path]) output = virtualFs[path].content.slice(0, 5000);
-            else output = `cat: ${args[0]}: 无此文件`;
-        } else if (cmd === "echo") output = args.join(' ');
-        else if (cmd === "mkdir") { const path = resolvePath(args[0]); if(!virtualFs[path]) { virtualFs[path] = { content: "" }; renderFileTree(); output = `创建目录: ${path}`; } else output = "目录已存在"; }
-        else if (cmd === "rm") { const path = resolvePath(args[0]); if(virtualFs[path]) { delete virtualFs[path]; renderFileTree(); output = `删除: ${path}`; } else output = "文件不存在"; }
-        else output = `未知命令: ${cmd}`;
-        return output || "命令执行完成";
-    }
-
-    async function fileRead(path) { return virtualFs[path] ? virtualFs[path].content : `❌ 文件不存在: ${path}`; }
-    async function webFetch(url) { try { const resp = await fetch(url); const txt = await resp.text(); return `📄 获取成功 (前1000字符):\n${txt.slice(0,1000)}`; } catch(e) { return `❌ 获取失败: ${e.message}`; } }
-    async function fileWrite(path, mode, content) { if(mode === "append") virtualFs[path] = { content: (virtualFs[path]?.content || "") + content }; else virtualFs[path] = { content }; renderFileTree(); return `✅ 文件已${mode === "append" ? "追加" : "写入"}: ${path}`; }
-    async function codebaseInvestigate(pattern, type) {
-        let results = [];
-        for (const [p, data] of Object.entries(virtualFs)) {
-            const content = data.content;
-            if (type === "regex") { const re = new RegExp(pattern, "i"); if (re.test(content)) results.push(p); }
-            else if (type === "keyword") { if (content.includes(pattern)) results.push(p); }
+        
+        function selectFile(p) { currentFile = p; editor.value = virtualFs[p].content; curFileSpan.innerText = p; renderFileTree(); addConsoleLog(`打开文件: ${p}`, "info"); }
+        
+        function saveCurrent() {
+            if (currentFile && virtualFs[currentFile]) { virtualFs[currentFile].content = editor.value; addFeedbackMsg(`💾 已保存 ${currentFile}`); addConsoleLog(`保存文件: ${currentFile}`, "success"); renderFileTree(); }
+            else if (currentFile && !virtualFs[currentFile]) { virtualFs[currentFile] = { content: editor.value }; addFeedbackMsg(`📄 创建并保存 ${currentFile}`); renderFileTree(); }
+            else addFeedbackMsg("请先选择或创建文件");
         }
-        return results.length ? `📂 匹配文件: ${results.join(", ")}` : "未找到匹配内容";
-    }
-    function taskDone() { return "<task-down/>"; }
-    function planManage(action, args) {
-        if (action === "list") return `当前计划: 根任务=${planStore.root || "无"}, 子任务数=${planStore.subTasks.length}`;
-        if (action === "create_root") { planStore.root = args; return `根任务已创建: ${args}`; }
-        if (action === "add_sub") { planStore.subTasks.push(args); return `子任务已添加: ${args}`; }
-        return "plan操作完成";
-    }
-    function skillLoad(name) {
-        const skills = {
-            builtin_frontend_develop: `【前端开发技能】使用 Vite+React+TypeScript，组件化开发，TailwindCSS，状态管理建议 Zustand。项目结构: src/components, src/pages, src/hooks。自动化构建和热更新。`,
-            builtin_android_develop: `【Android开发技能】Kotlin + Jetpack Compose，MVVM架构，使用Room, Retrofit。项目结构: data, domain, presentation。`,
-            "code-knowledge-explorer": `【代码知识探索】深度分析代码库结构，提取函数依赖，类图，提供重构建议和调用链可视化。`
-        };
-        return skills[name] || `技能 ${name} 暂无详细指令，请参考通用开发规范。`;
-    }
-
-    async function executeFileOperation(operation, path, content = null) {
-        if (operation === "create") { if (virtualFs[path]) return `❌ 文件 ${path} 已存在`; virtualFs[path] = { content: content || "" }; renderFileTree(); return `✅ 文件已创建: ${path}`; }
-        if (operation === "update") { if (!virtualFs[path]) return `❌ 文件不存在`; virtualFs[path].content = content; if (currentFile === path) editor.value = content; renderFileTree(); return `✅ 已更新: ${path}`; }
-        if (operation === "delete") { delete virtualFs[path]; if (currentFile === path) { let keys = Object.keys(virtualFs); currentFile = keys[0] || null; if(currentFile) editor.value = virtualFs[currentFile].content; else editor.value = ""; } renderFileTree(); return `✅ 已删除: ${path}`; }
-        return "未知操作";
-    }
-
-    async function parseAndExecuteTags(fullText) {
-        let displayHtml = fullText;
-        let feedbacks = [];
-        displayHtml = displayHtml.replace(/<thinking>([\s\S]*?)<\/thinking>/g, `<div class="thinking">💭 ${escapeHtml("$1")}</div>`);
-        displayHtml = displayHtml.replace(/<highlight>([\s\S]*?)<\/highlight>/g, `<span class="highlight">$1</span>`);
-        displayHtml = displayHtml.replace(/<link>([^,]+),(.*?)<\/link>/g, `<a href="$1" target="_blank" style="color:#a5d296;">$2</a>`);
-        displayHtml = displayHtml.replace(/<code-html>([\s\S]*?)<\/code-html>/g, `<pre><code>${escapeHtml("$1")}</code></pre>`);
-        displayHtml = displayHtml.replace(/<code>([\s\S]*?)<\/code>/g, `<pre><code>${escapeHtml("$1")}</code></pre>`);
-
-        const tools = [
-            { regex: /<clone-repo\s+url="([^"]+)"\s*(?:dest="([^"]*)")?\s*\/>/g, handler: (m) => cloneRepo(m[1], m[2]) },
-            { regex: /<send-attachments\s+paths="([^"]+)"\s*\/>/g, handler: (m) => sendAttachments(m[1]) },
-            { regex: /<web-search>([\s\S]*?)<\/web-search>/g, handler: (m) => webSearch(m[1]) },
-            { regex: /<wait-user\s*\/>/g, handler: () => { waitingResolver && waitingResolver(); return "⏸️ 等待用户输入"; } },
-            { regex: /<shell-cmd\s+command="([^"]+)"\s*\/>/g, handler: (m) => shellExecute(m[1]) },
-            { regex: /<file-read\s+path="([^"]+)"\s*\/>/g, handler: (m) => fileRead(m[1]) },
-            { regex: /<web-fetch\s+url="([^"]+)"\s*\/>/g, handler: (m) => webFetch(m[1]) },
-            { regex: /<file-write\s+path="([^"]+)"\s+mode="([^"]+)"\s*>([\s\S]*?)<\/file-write>/g, handler: (m) => fileWrite(m[1], m[2], m[3]) },
-            { regex: /<codebase-investigate\s+pattern="([^"]+)"\s+type="([^"]+)"\s*\/>/g, handler: (m) => codebaseInvestigate(m[1], m[2]) },
-            { regex: /<task-done\s*\/>/g, handler: () => taskDone() },
-            { regex: /<plan-manage\s+action="([^"]+)"\s+args="([^"]*)"\s*\/>/g, handler: (m) => planManage(m[1], m[2]) },
-            { regex: /<skill-load\s+name="([^"]+)"\s*\/>/g, handler: (m) => skillLoad(m[1]) }
-        ];
-        for (const tool of tools) {
-            let m; const original = fullText;
-            while ((m = tool.regex.exec(original)) !== null) {
-                let result = await tool.handler(m);
-                feedbacks.push(result);
-                addFeedbackMsg(`🛠️ 工具反馈: ${result.slice(0, 200)}`);
-                displayHtml = displayHtml.replace(m[0], `<div class="thinking">🔧 ${escapeHtml(result)}</div>`);
+        
+        function deleteFile(p) {
+            if (confirm(`删除 ${p}?`)) {
+                delete virtualFs[p];
+                if (currentFile === p) { let keys = Object.keys(virtualFs); currentFile = keys[0] || null; if (currentFile) editor.value = virtualFs[currentFile].content; else editor.value = ""; }
+                renderFileTree(); addFeedbackMsg(`🗑️ 已删除 ${p}`); addConsoleLog(`删除文件: ${p}`, "warn");
             }
         }
-        const hasTaskDown = fullText.includes("<task-down>") || fullText.includes("<task-done/>");
-        const hasWaiting = fullText.includes("<waiting>") || fullText.includes("<wait-user/>");
-        if (hasTaskDown) displayHtml = displayHtml.replace(/<task-down>|<task-done\/>/g, '<div class="task-done">✅ 任务完成</div>');
-        if (hasWaiting) displayHtml = displayHtml.replace(/<waiting>|<wait-user\/>/g, '<div class="waiting-pill">⏳ 等待用户回复</div>');
-        const htmlMatch = displayHtml.match(/<html>([\s\S]*?)<\/html>/);
-        if (htmlMatch) { previewFrame.srcdoc = htmlMatch[1]; previewModal.classList.remove("hidden"); displayHtml = displayHtml.replace(/<html>[\s\S]*?<\/html>/, '<button onclick="document.getElementById(\'previewModal\').classList.remove(\'hidden\')" style="background:#f0f7ec; border:none; padding:4px 12px; border-radius:20px;">🌐 预览</button>'); addConsoleLog("HTML 预览已触发", "success"); }
-        const fileCreateRegex = /<file-create\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-create>/g; let m;
-        while ((m = fileCreateRegex.exec(fullText)) !== null) { let r = await executeFileOperation("create", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-        const fileUpdateRegex = /<file-update\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-update>/g;
-        while ((m = fileUpdateRegex.exec(fullText)) !== null) { let r = await executeFileOperation("update", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
-        const fileDeleteRegex = /<file-delete\s+path="([^"]+)"\s*\/>/g;
-        while ((m = fileDeleteRegex.exec(fullText)) !== null) { let r = await executeFileOperation("delete", m[1]); feedbacks.push(r); addFeedbackMsg(r); }
-        return { displayHtml, feedbacks, hasWaiting, hasTaskDown, hasOp: feedbacks.length>0 };
-    }
-
-    async function streamDeepSeek(messages, onChunk) {
-        if (!apiKey) throw new Error("请设置API Key");
-        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${apiKey}`},
-            body:JSON.stringify({ model:selectedModel, messages, stream:true, temperature:0.7 })
-        });
-        if (!resp.ok) { let errText = await resp.text(); throw new Error(`API错误 ${resp.status}: ${errText.slice(0,150)}`); }
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer="", fullText="";
-        while(true){
-            const {done,value}=await reader.read();
-            if(done) break;
-            buffer+=decoder.decode(value,{stream:true});
-            const lines=buffer.split("\n");
-            buffer=lines.pop();
-            for(let line of lines){
-                if(line.startsWith("data: ")){
-                    const data=line.slice(6);
-                    if(data==="[DONE]") return fullText;
-                    try{
-                        const parsed=JSON.parse(data);
-                        const delta=parsed.choices[0]?.delta?.content;
-                        if(delta){ fullText+=delta; if(onChunk) onChunk(delta); }
-                    }catch(e){}
-                }
-            }
+        
+        function newFile() { let name = prompt("文件名:", "newfile.txt"); if (name && !virtualFs[name]) { virtualFs[name] = { content: "" }; currentFile = name; editor.value = ""; renderFileTree(); addFeedbackMsg(`📄 创建 ${name}`); } else if (name) alert("文件已存在"); }
+        
+        async function executeFileOperation(operation, path, content = null) {
+            if (operation === "create") { if (virtualFs[path]) return `❌ 文件 ${path} 已存在`; virtualFs[path] = { content: content || "" }; renderFileTree(); return `✅ 文件已创建: ${path}`; }
+            if (operation === "update") { if (!virtualFs[path]) return `❌ 文件不存在`; virtualFs[path].content = content; if (currentFile === path) editor.value = content; renderFileTree(); return `✅ 已更新: ${path}`; }
+            if (operation === "delete") { delete virtualFs[path]; if (currentFile === path) { let keys = Object.keys(virtualFs); currentFile = keys[0] || null; if(currentFile) editor.value = virtualFs[currentFile].content; else editor.value = ""; } renderFileTree(); return `✅ 已删除: ${path}`; }
+            return "未知操作";
         }
-        return fullText;
-    }
-
-    const SYSTEM_PROMPT = `你是 MuYanCoding，一个专业且全能的 AI 编程 Agent。你必须严格遵守以下输出格式和工具使用规范，禁止输出任何不符合规范的内容。
+        
+        async function parseAndExecuteTags(fullText) {
+            let displayHtml = fullText;
+            let feedbacks = [];
+            displayHtml = displayHtml.replace(/<thinking>([\s\S]*?)<\/thinking>/g, `<div class="thinking">💭 ${escapeHtml("$1")}</div>`);
+            let m;
+            const fileCreateRegex = /<file-create\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-create>/g;
+            while ((m = fileCreateRegex.exec(fullText)) !== null) { let r = await executeFileOperation("create", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
+            const fileUpdateRegex = /<file-update\s+path="([^"]+)"\s*>([\s\S]*?)<\/file-update>/g;
+            while ((m = fileUpdateRegex.exec(fullText)) !== null) { let r = await executeFileOperation("update", m[1], m[2]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
+            const fileDeleteRegex = /<file-delete\s+path="([^"]+)"\s*\/>/g;
+            while ((m = fileDeleteRegex.exec(fullText)) !== null) { let r = await executeFileOperation("delete", m[1]); feedbacks.push(r); addFeedbackMsg(r); displayHtml = displayHtml.replace(m[0], ''); }
+            const hasTaskDown = fullText.includes("<task-down>") || fullText.includes("<task-done/>");
+            const hasWaiting = fullText.includes("<waiting>") || fullText.includes("<wait-user/>");
+            if (hasTaskDown) displayHtml = displayHtml.replace(/<task-down>|<task-done\/>/g, '<div class="task-done">✅ 任务完成</div>');
+            if (hasWaiting) displayHtml = displayHtml.replace(/<waiting>|<wait-user\/>/g, '<div class="waiting-pill">⏳ 等待用户回复</div>');
+            return { displayHtml, feedbacks, hasWaiting, hasTaskDown };
+        }
+        
+        async function streamDeepSeek(messages, onChunk) { 
+            if (!apiKey) throw new Error("请先设置 API Key"); 
+            const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+                method:"POST",
+                headers:{"Content-Type":"application/json","Authorization":`Bearer ${apiKey}`},
+                body:JSON.stringify({ model:selectedModel, messages, stream:true, temperature:0.7 })
+            }); 
+            if (!resp.ok) { let errText = await resp.text(); throw new Error(`API错误 ${resp.status}: ${errText.slice(0,100)}`); }
+            const reader = resp.body.getReader(); 
+            const decoder = new TextDecoder(); 
+            let buffer="", fullText=""; 
+            while(true){ 
+                const {done,value}=await reader.read(); 
+                if(done) break; 
+                buffer+=decoder.decode(value,{stream:true}); 
+                const lines=buffer.split("\n"); 
+                buffer=lines.pop(); 
+                for(let line of lines){ 
+                    if(line.startsWith("data: ")){ 
+                        const data=line.slice(6); 
+                        if(data==="[DONE]") return fullText; 
+                        try{ 
+                            const parsed=JSON.parse(data); 
+                            const delta=parsed.choices[0]?.delta?.content; 
+                            if(delta){ fullText+=delta; if(onChunk) onChunk(delta); } 
+                        } catch(e){} 
+                    } 
+                } 
+            } 
+            return fullText; 
+        }
+        
+        const SYSTEM_PROMPT_FULL = `你是 MuYanCoding，一个专业且功能完整的 AI 编程 Agent。你必须严格遵守以下输出格式和工具使用规范，禁止输出任何不符合规范的内容。
 
 【全局硬性限制】
-1. 绝对禁止使用任何 Markdown 语法（如 #, **, `, ```, --- 等）。
+1. 绝对禁止使用任何 Markdown 语法（如 #, **, \`, \`\`\`, --- 等）。
 2. 禁止输出任何自然语言解释、对话、问候或与任务无关的文字。
-3. 每次回复只能包含零个或一个 <thinking> 标签，以及紧接着的一个功能标签（例如 <file-create ...> 或 <clone-repo .../> 或 <task-done/>）。
+3. 每次回复只能包含零个或一个 <thinking> 标签，以及紧接着的一个功能标签（例如 <file-create ...> 或 <task-down/>）。不能同时输出多个功能标签。
 4. 你需要通过反复执行单一标签来逐步完成任务。每次执行后，系统会给出反馈，你根据反馈选择下一个标签。
-5. 当任务完全完成时，必须输出 <task-done/> 或 <task-down>（二选一）来结束任务。
-6. 当需要用户提供额外信息或确认时，必须输出 <wait-user/>（或 <waiting>），系统会暂停并等待用户输入，用户回复后你将收到用户的输入内容。
+5. 当任务完全完成时，必须输出 <task-down> 或 <task-done/>。
+6. 当需要用户提供额外信息或确认时，必须输出 <waiting> 或 <wait-user/>，系统会暂停并等待用户输入，用户回复后你将收到用户的输入内容。
 
-【可用工具标签列表（按类别分组）】
+【可用工具标签完整列表及详细说明】
 
-=== 文件与工作台操作 ===
-- <file-create path="相对路径">文件内容</file-create>
-  说明：在工作台创建新文件，路径可以是 "index.html" 或 "src/app.js"。内容为纯文本。
+一、文件与工作台操作（支持相对路径，基于工作台根目录）
+- <file-create path="文件路径">文件内容</file-create>
+  说明：在工作台创建新文件，路径可以是 "index.html" 或 "src/app.js"。内容为纯文本。如果文件已存在则失败并返回错误。
   示例：<file-create path="hello.txt">你好世界</file-create>
 
-- <file-update path="相对路径">新的完整内容</file-update>
-  说明：更新或覆盖已存在的文件内容。若文件不存在则创建。
+- <file-update path="文件路径">新的完整内容</file-update>
+  说明：更新或覆盖已存在的文件内容。如果文件不存在则自动创建。
 
-- <file-delete path="相对路径"/>
+- <file-delete path="文件路径"/>
   说明：删除指定文件。注意路径必须准确。
 
-- <file-read path="相对路径"/>
-  说明：读取文件全部内容并返回给 Agent（会在反馈中看到内容）。
-
-- <file-write path="相对路径" mode="write|append">内容</file-write>
-  说明：mode="write" 覆盖写入；mode="append" 追加到文件末尾。
-
-=== 代码仓库与外部协作 ===
-- <clone-repo url="https://github.com/owner/repo" dest="可选目标目录"/>
-  说明：克隆公共 GitHub 仓库到本地工作台（自动抓取所有文件）。dest 参数可选，默认为仓库名。
-
-- <send-attachments paths="file1.txt, src/index.html"/>
-  说明：将工作台中的文件作为附件提供给用户（可生成下载链接）。
-
-=== 网络与搜索 ===
-- <web-search>搜索关键词</web-search>
-  说明：使用搜索引擎（DuckDuckGo）搜索网页，返回摘要和前几条结果。
-
-- <web-fetch url="https://example.com"/>
-  说明：直接获取指定 URL 的网页内容（前1000字符），用于提取信息或 API 响应。
-
-=== Shell 与系统命令（虚拟环境，支持以下子命令） ===
-- <shell-cmd command="ls -la"/>
-  支持的命令：ls, pwd, cd, cat, echo, mkdir, rm。工作目录持久化。
-  示例：<shell-cmd command="cd src"/> 然后 <shell-cmd command="ls"/>。
-
-=== 代码分析与智能搜索 ===
-- <codebase-investigate pattern="关键词或正则" type="keyword|regex"/>
-  说明：在工作台所有文件中进行语义或正则搜索。type="keyword" 匹配字符串，type="regex" 支持 JavaScript 正则。
-
-- <check-code lang="javascript|python|html">代码片段</check-code>
-  说明：静态检查代码常见问题（如 console.log, alert, eval 等）。
-
-=== 计划与任务管理 ===
-- <plan-manage action="create_root|add_sub|list" args="计划描述"/>
-  说明：用于管理复杂任务的层级计划。
-  action="create_root"：设置根任务目标。
-  action="add_sub"：添加一个子任务步骤。
-  action="list"：查看当前计划。
-
-=== 技能加载 ===
-- <skill-load name="builtin_frontend_develop|builtin_android_develop|code-knowledge-explorer"/>
-  说明：加载特定领域的详细开发技能指令（前端 React/TS，Android Kotlin，代码深度探索）。
-
-=== 实用工具 ===
 - <get-time/>
-  说明：返回当前系统时间（北京时间）。
+  说明：返回当前系统时间（北京时间，格式：YYYY/MM/DD HH:MM:SS）。
 
 - <calc>数学表达式</calc>
-  说明：计算表达式，例如 <calc>(100+200)*3</calc>。
-
-- <b64encode>文本</b64encode>
-- <b64decode>Base64字符串</b64decode>
-  说明：Base64 编码/解码。
-
-- <html>完整HTML代码</html>
-  说明：激活预览 HTML 页面（会自动弹出预览窗口）。适用于提供可视化结果。
+  说明：计算数学表达式，支持 + - * / 和括号。例如 <calc>(100+200)*3</calc>。
 
 - <highlight>重要文本</highlight>
-  说明：在消息中高亮显示内容。
+  说明：在消息中高亮显示内容（用于强调）。
 
-- <link>https://example.com,显示文字</link>
-  说明：创建可点击链接。
+- <link>url,显示文字</link>
+  说明：创建可点击链接。示例：<link>https://example.com,点击这里</link>
 
 - <code-html>HTML/JS/CSS代码</code-html> 或 <code>通用代码</code>
   说明：展示代码块，自动语法高亮。
 
-- <thinking>你的内部推理过程</thinking>
-  说明：可选的思考标签，用于展示 Agent 内部推理，不影响功能。必须在功能标签之前单独一行。
+- <html>完整HTML代码</html>
+  说明：渲染并预览 HTML 页面（会自动弹出预览窗口）。适用于提供可视化结果。
 
-【完整交互流程示例】
-用户: "创建一个 HTML 页面，显示 Hello World，并克隆 vue 仓库"
-Agent:
-<thinking>用户需要两个动作：1) 创建 HTML 文件；2) 克隆 vue 仓库。先创建文件。</thinking>
-<file-create path="hello.html"><html><body><h1>Hello World</h1></body></html></file-create>
-系统反馈: ✅ 文件已创建: hello.html
-Agent:
-<clone-repo url="https://github.com/vuejs/vue" dest="vue-repo"/>
-系统反馈: ✅ 克隆成功，共 184 个文件保存至目录 vue-repo/
-Agent:
-<task-done/>
+二、编码辅助
+- <check-code lang="语言">代码片段</check-code>
+  说明：静态检查代码常见问题（如 console.log, alert, eval 等）。支持的语言：javascript, python, html, css。
+  示例：<check-code lang="javascript">console.log("test");</check-code>
 
-【任务完成时】
-输出 <task-done/> 或 <task-down> 即结束整个任务流程。
+三、任务管理
+- <task-down> 或 <task-done/>
+  说明：标记整个任务完成，Agent 将停止执行。
 
-【等待用户时】
-如果需要用户输入额外信息（例如缺少 API Key，询问选择分支等），输出 <wait-user/>，系统将暂停并等待用户回复。
+- <waiting> 或 <wait-user/>
+  说明：暂停任务并等待用户输入。用户回复后系统会将用户消息作为新的输入继续对话。
+
+【输出格式强制要求】
+- 每次只能输出一个功能标签（可以前面加一个 <thinking> 标签）。
+- 示例正确的输出：
+  <thinking>用户需要创建一个HTML文件，我先创建文件。</thinking>
+  <file-create path="index.html"><html><body><h1>Hello</h1></body></html></file-create>
+- 禁止输出类似 "好的，我来帮你创建文件" 这样的自然语言。只有标签。
+- 禁止在同一个回复中输出两个不同的功能标签。
+
+【任务执行流程】
+1. 用户提出需求。
+2. 你根据需求，输出一个标签执行一个操作。
+3. 系统执行该操作并返回反馈（成功/失败及详细信息）。
+4. 你根据反馈决定下一步，再次输出一个标签。
+5. 重复直到任务完成，输出 <task-down> 结束。
 
 【注意事项】
-- 所有标签都必须被正确闭合（自闭合标签如 <clone-repo .../> 或成对标签）。
-- 不要在同一回复中输出多个功能标签。一次只做一个动作。
-- 系统每次都会提供反馈，请根据反馈决定下一步。
-- 如果连续两次无有效操作（如重复相同输出），任务会自动停止，因此请确保每次输出都有实际效果。
 - 工作台文件系统是持久的，所有文件写入、删除、更新都会真实保存。
+- 如果操作失败，请根据错误反馈调整参数后重试。
+- 如果连续两次无有效操作（如重复相同输出），任务会自动停止。
+- 不要编造不存在的工具或标签。只使用上述列出的标签。
 
 现在，请根据用户的任务要求，遵循上述规范逐步执行。记住：只输出标签，不输出任何解释文字。开始。`;
-
-    async function runAgent(initialMsg) {
-        if (agentActive) { addFeedbackMsg("已有任务运行中"); return; }
-        agentActive = true; statusSpan.innerText = "🔵 运行中"; addUserMsg(initialMsg);
-        conversationHistory = [{ role:"system", content: SYSTEM_PROMPT }, { role:"user", content: initialMsg }];
-        let step=0, MAX_STEPS=25;
-        while(agentActive && step<MAX_STEPS){
-            step++; statusSpan.innerText=`🔵 思考中 (${step})`;
-            let currentReply="", agentMsgDiv=addAgentMsgWithStream();
-            let fullReply = "";
-            try {
-                fullReply = await streamDeepSeek(conversationHistory, (chunk)=>{ currentReply+=chunk; agentMsgDiv.innerHTML+=chunk; messagesDiv.scrollTop=messagesDiv.scrollHeight; });
-            } catch(err) {
-                addFeedbackMsg(`❌ API调用失败: ${err.message}`);
-                addConsoleLog(`API错误: ${err.message}`, "error");
-                break;
+        
+        async function runAgent(initialMsg) {
+            if (agentActive) { addFeedbackMsg("已有任务运行中"); return; }
+            agentActive = true; statusSpan.innerText = "🔵 运行中"; addUserMsg(initialMsg);
+            conversationHistory = [{ role:"system", content: SYSTEM_PROMPT_FULL }, { role:"user", content: initialMsg }];
+            let step=0, MAX_STEPS=15;
+            while(agentActive && step<MAX_STEPS){
+                step++; statusSpan.innerText=`🔵 思考中 (${step})`;
+                let currentReply="", agentMsgDiv=addAgentMsgWithStream();
+                let fullReply = "";
+                try { fullReply = await streamDeepSeek(conversationHistory, (chunk)=>{ currentReply+=chunk; agentMsgDiv.innerHTML+=chunk; messagesDiv.scrollTop=messagesDiv.scrollHeight; }); } 
+                catch(err) { addFeedbackMsg(`❌ API调用失败: ${err.message}`); break; }
+                if(!agentActive) break;
+                const { displayHtml, feedbacks, hasTaskDown, hasWaiting } = await parseAndExecuteTags(fullReply);
+                agentMsgDiv.innerHTML = displayHtml;
+                conversationHistory.push({ role:"assistant", content: fullReply });
+                if(feedbacks.length) conversationHistory.push({ role:"system", content: "系统反馈:\n"+feedbacks.join("\n") });
+                if(hasTaskDown){ addFeedbackMsg("🏁 任务完成"); break; }
+                if(hasWaiting){
+                    statusSpan.innerText="⏸️ 等待回复";
+                    await new Promise(resolve=>{ waitingResolver = resolve; });
+                    if(window._pendingReply){ conversationHistory.push({ role:"user", content: window._pendingReply }); addUserMsg(window._pendingReply); window._pendingReply = null; }
+                    statusSpan.innerText="🔵 继续执行";
+                }
             }
-            if(!agentActive) break;
-            const { displayHtml, feedbacks, hasTaskDown, hasWaiting } = await parseAndExecuteTags(fullReply);
-            agentMsgDiv.innerHTML = displayHtml;
-            conversationHistory.push({ role:"assistant", content: fullReply });
-            if(feedbacks.length) conversationHistory.push({ role:"system", content: "系统反馈:\n"+feedbacks.join("\n") });
-            if(hasTaskDown){ addFeedbackMsg("🏁 任务完成"); break; }
-            if(hasWaiting){
-                statusSpan.innerText="⏸️ 等待回复";
-                await new Promise(resolve=>{ waitingResolver = resolve; });
-                if(window._pendingReply){ conversationHistory.push({ role:"user", content: window._pendingReply }); addUserMsg(window._pendingReply); window._pendingReply = null; }
-                statusSpan.innerText="🔵 继续执行";
-            }
+            agentActive = false; statusSpan.innerText = "⚪ 空闲";
         }
-        agentActive = false; statusSpan.innerText = "⚪ 空闲";
-    }
-
-    if (apiKey) apiKeyInput.value = apiKey;
-    saveKeyBtn.onclick = () => { apiKey = apiKeyInput.value.trim(); localStorage.setItem("muyan_api", apiKey); addFeedbackMsg("✅ API Key 已保存"); addConsoleLog("API Key 已保存", "success"); };
-    modelSelect.onchange = () => { selectedModel = modelSelect.value; addConsoleLog(`切换模型: ${selectedModel}`, "info"); };
-    newFileBtn.onclick = newFile;
-    saveFileBtn.onclick = saveCurrent;
-    downloadBtn.onclick = () => { if (currentFile && virtualFs[currentFile]) { let blob = new Blob([virtualFs[currentFile].content], {type: "text/plain"}); let a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = currentFile; a.click(); URL.revokeObjectURL(a.href); addConsoleLog(`下载文件: ${currentFile}`, "info"); } else addFeedbackMsg("没有可下载的文件"); };
-    closePreview.onclick = () => previewModal.classList.add("hidden");
-    manualPreviewBtn.onclick = () => { if (currentFile && virtualFs[currentFile]) { previewFrame.srcdoc = virtualFs[currentFile].content; previewModal.classList.remove("hidden"); addConsoleLog(`手动预览: ${currentFile}`, "info"); } else addFeedbackMsg("没有可预览的文件"); };
-    sendBtn.onclick = async () => { if (agentActive) { addFeedbackMsg("请先停止当前任务"); return; } let text = promptInput.value.trim(); if (!text) return; promptInput.value = ""; await runAgent(text); };
-    stopBtn.onclick = () => { if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; addFeedbackMsg("⏹️ 已停止"); addConsoleLog("用户手动停止任务", "warn"); statusSpan.innerText = "⚪ 已停止"; } };
-    consoleTabClear.onclick = () => { consoleLogDiv.innerHTML = ""; addConsoleLog("控制台已清空", "info"); };
-    renderFileTree();
-    addFeedbackMsg("欢迎使用MuYanCoding｜专业的编程Agent");
-    addConsoleLog("MuYanCoding 已启动，控制台就绪", "success");
-
-    setInterval(() => {
-        if (statusSpan.innerText.includes("等待回复") && !document.getElementById("waitBox")) {
-            let div = document.createElement("div"); div.id = "waitBox"; div.style.cssText = "position:sticky; bottom:10px; background:white; border:1px solid #E5E7EB; border-radius:40px; padding:6px 12px; display:flex; gap:10px; margin:8px 0;";
-            div.innerHTML = `<input id="waitInput" placeholder="回复..." style="flex:1; border:none; outline:none;"><button id="waitSend" class="primary">发送</button>`;
-            messagesDiv.appendChild(div);
-            document.getElementById("waitSend").onclick = () => { let val = document.getElementById("waitInput").value.trim(); if (val && waitingResolver) { window._pendingReply = val; waitingResolver(); div.remove(); } };
-        } else if (!statusSpan.innerText.includes("等待回复") && document.getElementById("waitBox")) document.getElementById("waitBox")?.remove();
-    }, 200);
-})();
+        
+        function bindEvents() {
+            saveKeyBtn.onclick = () => { apiKey = apiKeyInput.value.trim(); localStorage.setItem("muyan_api", apiKey); addFeedbackMsg("✅ API Key 已保存"); addConsoleLog("API Key 已保存", "success"); };
+            modelSelect.onchange = () => { selectedModel = modelSelect.value; addConsoleLog(`切换模型: ${selectedModel}`, "info"); };
+            newFileBtn.onclick = newFile;
+            saveFileBtn.onclick = saveCurrent;
+            downloadBtn.onclick = () => { if (currentFile && virtualFs[currentFile]) { let blob = new Blob([virtualFs[currentFile].content], {type: "text/plain"}); let a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = currentFile; a.click(); URL.revokeObjectURL(a.href); addConsoleLog(`下载文件: ${currentFile}`, "info"); } else addFeedbackMsg("没有可下载的文件"); };
+            closePreview.onclick = () => previewModal.classList.add("hidden");
+            manualPreviewBtn.onclick = () => { if (currentFile && virtualFs[currentFile]) { previewFrame.srcdoc = virtualFs[currentFile].content; previewModal.classList.remove("hidden"); addConsoleLog(`手动预览: ${currentFile}`, "info"); } else addFeedbackMsg("没有可预览的文件"); };
+            sendBtn.onclick = async () => { if (agentActive) { addFeedbackMsg("请先停止当前任务"); return; } let text = promptInput.value.trim(); if (!text) return; promptInput.value = ""; await runAgent(text); };
+            stopBtn.onclick = () => { if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; addFeedbackMsg("⏹️ 已停止"); addConsoleLog("用户手动停止任务", "warn"); statusSpan.innerText = "⚪ 已停止"; } };
+            consoleTabClear.onclick = () => { consoleLogDiv.innerHTML = ""; addConsoleLog("控制台已清空", "info"); };
+        }
+        
+        function init() {
+            if (apiKey) apiKeyInput.value = apiKey;
+            renderFileTree();
+            bindEvents();
+            addFeedbackMsg("欢迎使用MuYanCoding｜专业的编程Agent");
+            addConsoleLog("MuYanCoding 已启动，控制台就绪，系统提示词已完整加载", "success");
+            setInterval(() => {
+                if (statusSpan.innerText.includes("等待回复") && !document.getElementById("waitBox")) {
+                    let div = document.createElement("div"); div.id = "waitBox"; div.style.cssText = "position:sticky; bottom:10px; background:white; border:1px solid #E5E7EB; border-radius:40px; padding:6px 12px; display:flex; gap:10px; margin:8px 0;";
+                    div.innerHTML = `<input id="waitInput" placeholder="回复..." style="flex:1; border:none; outline:none;"><button id="waitSend" class="primary">发送</button>`;
+                    messagesDiv.appendChild(div);
+                    document.getElementById("waitSend").onclick = () => { let val = document.getElementById("waitInput").value.trim(); if (val && waitingResolver) { window._pendingReply = val; waitingResolver(); div.remove(); } };
+                } else if (!statusSpan.innerText.includes("等待回复") && document.getElementById("waitBox")) document.getElementById("waitBox")?.remove();
+            }, 200);
+        }
+        
+        init();
+    })();
 </script>
 </body>
 </html>
