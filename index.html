@@ -750,9 +750,9 @@
         <div class="settings-section">
             <div class="settings-section-title"><i class="fas fa-info-circle"></i> 关于</div>
             <div class="info-text"><i class="fas fa-user-astronaut"></i> 开发者：CCWMORAN 慕然科技 @Morgan</div>
-            <div class="info-text"><i class="fas fa-link"></i> 官网：<a href="https://www.ccwmoran.top" target="_blank" class="info-link">www.ccwmoran.top</a></div>
-            <div class="info-text"><i class="fas fa-mobile-alt"></i> 移动端 App：</div>
-            <button id="appDownloadBtn" class="download-btn"><i class="fas fa-download"></i> </button>
+            <div class="info-text"><i class="fas fa-link"></i> 慕然科技官网：<a href="https://www.ccwmoran.top" target="_blank" class="info-link">www.ccwmoran.top</a></div>
+            <div class="info-text"><i class="fas fa-mobile-alt"></i> 下载移动端 App：</div>
+            <button id="appDownloadBtn" class="download-btn"><i class="fas fa-download"></i> 即将上线</button>
         </div>
     </div>
     <div class="modal-footer"><button id="closeSettingsFooterBtn">关闭</button></div>
@@ -1106,7 +1106,7 @@
 - 当你不确定某个文件的内容时，先用 <search-files> 找到文件，再用 <read-file> 读取内容。
 - 如果遇到错误且无法自动修复，使用 <waiting> 请求用户帮助，而不是反复尝试相同操作。
 
-现在，请根据用户的任务要求，遵循上述规范逐步执行。记住：只输出标签，不输出任何解释文字。开始。`;
+现在，请根据用户的任务要求，完全遵循上述规范逐步执行。记住：只输出标签，不能直接输出任何解释文字。开始。`;
 
         const SYSTEM_AGENT = `你是 MuYan Agent，一个智能助手。你可以输出自然语言与用户对话，回答编程问题，提供建议，解释代码，或者使用工具来帮助用户。
 
@@ -1153,7 +1153,7 @@
 - 如果用户的问题需要文件操作，主动提示切换到 CodingAgent 模式。
 - 如果你不确定答案，可以诚实地说不知道，并建议用户查阅相关文档。
 
-现在，请开始与用户交流。记住：你可以使用自然语言，也可以调用上述工具。文件操作相关工具不可用。`;
+现在，请完全按照上述要求开始与用户交流。记住：你可以使用自然语言，也可以调用上述工具。文件操作相关工具不可用。`;
 
         async function runAgent(initialMsg) { 
             if (agentActive) return; 
