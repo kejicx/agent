@@ -6,6 +6,7 @@
     <title>MuYanCoding | 智能编程助手</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         * {
@@ -59,45 +60,51 @@
             background: var(--bg-sidebar);
             border-bottom: 1px solid var(--border);
             height: 48px;
-            padding: 0 20px;
+            padding: 0 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-shrink: 0;
             z-index: 10;
+            gap: 16px;
         }
         .logo-area {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         .logo-icon {
-            font-size: 22px;
+            font-size: 20px;
+            color: var(--accent);
         }
         .logo-text {
             font-weight: 600;
-            font-size: 16px;
+            font-size: 15px;
             background: linear-gradient(135deg, var(--accent), var(--accent-strong));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            letter-spacing: -0.3px;
+            letter-spacing: -0.2px;
         }
         .mode-switch {
             display: flex;
             background: #1a1a1f;
-            border-radius: 40px;
+            border-radius: 32px;
             padding: 2px;
             border: 1px solid var(--border);
-            margin-left: 16px;
+            margin-left: 8px;
         }
         .mode-option {
             padding: 4px 12px;
             font-size: 12px;
-            border-radius: 40px;
+            border-radius: 32px;
             cursor: pointer;
             transition: all 0.15s;
             color: var(--text-tertiary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .mode-option.active {
             background: var(--accent);
@@ -105,34 +112,23 @@
         }
         .api-panel {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             align-items: center;
-        }
-        .api-panel input, .api-panel select {
-            background: #1a1a1f;
-            border: 1px solid var(--border);
-            padding: 6px 12px;
-            border-radius: var(--radius-md);
-            font-size: 13px;
-            font-family: var(--font-sans);
-            color: var(--text-primary);
-            outline: none;
-        }
-        .api-panel input:focus, .api-panel select:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px var(--accent-soft);
         }
         button {
             background: #25252c;
             border: 1px solid var(--border);
-            padding: 6px 14px;
+            padding: 5px 12px;
             border-radius: var(--radius-md);
             font-weight: 500;
-            font-size: 13px;
+            font-size: 12px;
             font-family: var(--font-sans);
             cursor: pointer;
             color: var(--text-primary);
             transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
         button.primary {
             background: var(--accent);
@@ -152,21 +148,27 @@
         }
         .status-badge {
             background: #1a1a1f;
-            padding: 4px 10px;
-            border-radius: 40px;
-            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 32px;
+            font-size: 11px;
             font-family: var(--font-mono);
             color: var(--text-secondary);
             border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         .token-display {
             background: #1a1a1f;
-            padding: 4px 10px;
-            border-radius: 40px;
+            padding: 4px 8px;
+            border-radius: 32px;
             font-size: 11px;
             font-family: var(--font-mono);
             color: var(--accent);
             border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         .main-layout {
             display: flex;
@@ -175,49 +177,29 @@
         }
         .workspace-area {
             display: flex;
-            transition: width 0.2s ease, opacity 0.2s;
-            width: auto;
             flex: 1;
+            transition: all 0.2s;
+            overflow: hidden;
         }
         .workspace-area.hidden {
             width: 0;
             flex: 0;
-            overflow: hidden;
             opacity: 0;
+            pointer-events: none;
         }
         .sidebar {
-            width: 280px;
+            width: 260px;
             background: var(--bg-sidebar);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
         }
-        .center-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: var(--bg-editor);
-            min-width: 0;
-        }
-        .right-panel {
-            width: 380px;
-            background: var(--bg-chat);
-            border-left: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-            transition: flex 0.2s;
-        }
-        .main-layout:has(.workspace-area.hidden) .right-panel {
-            flex: 1;
-            width: auto;
-        }
         .file-header {
-            padding: 12px 16px;
+            padding: 10px 16px;
             border-bottom: 1px solid var(--border);
             font-weight: 500;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--text-tertiary);
@@ -230,7 +212,7 @@
             gap: 6px;
         }
         .file-header-actions button {
-            padding: 4px 8px;
+            padding: 2px 8px;
             font-size: 11px;
             background: transparent;
             border: 1px solid var(--border-light);
@@ -246,17 +228,17 @@
             padding-left: 0;
         }
         .tree-node-children {
-            padding-left: 20px;
+            padding-left: 18px;
             list-style: none;
         }
         .tree-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 5px 8px;
+            padding: 4px 8px;
             border-radius: var(--radius-md);
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             transition: all 0.1s;
             user-select: none;
         }
@@ -280,7 +262,7 @@
             color: var(--accent);
         }
         .folder-toggle {
-            width: 18px;
+            width: 16px;
             text-align: center;
             cursor: pointer;
             color: var(--text-tertiary);
@@ -289,6 +271,7 @@
         .item-icon {
             font-size: 14px;
             width: 20px;
+            color: var(--text-secondary);
         }
         .item-actions {
             display: none;
@@ -300,33 +283,53 @@
         .item-actions button {
             background: transparent;
             border: none;
-            padding: 2px 6px;
-            font-size: 11px;
+            padding: 2px 4px;
+            font-size: 10px;
             color: var(--text-tertiary);
         }
         .item-actions button:hover {
             color: var(--accent);
         }
+        .center-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-editor);
+            min-width: 0;
+        }
         .editor-toolbar {
-            padding: 8px 16px;
+            padding: 6px 12px;
             background: var(--bg-sidebar);
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 13px;
+            font-size: 12px;
         }
         #editor {
             flex: 1;
             background: var(--bg-editor);
             border: none;
-            padding: 16px;
+            padding: 12px;
             font-family: var(--font-mono);
-            font-size: 13px;
+            font-size: 12px;
             line-height: 1.5;
             resize: none;
             outline: none;
             color: var(--text-primary);
+        }
+        .right-panel {
+            width: 380px;
+            background: var(--bg-chat);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: flex 0.2s;
+        }
+        .main-layout:has(.workspace-area.hidden) .right-panel {
+            flex: 1;
+            width: auto;
         }
         .messages {
             flex: 1;
@@ -338,10 +341,10 @@
         }
         .msg {
             border-radius: 16px;
-            padding: 10px 14px;
-            max-width: 95%;
+            padding: 8px 12px;
+            max-width: 92%;
             font-size: 13px;
-            line-height: 1.5;
+            line-height: 1.45;
             animation: fadeIn 0.2s ease;
         }
         .user-msg {
@@ -359,61 +362,62 @@
         .feedback-msg {
             background: #23232a;
             color: var(--text-tertiary);
-            font-size: 12px;
+            font-size: 11px;
             font-family: var(--font-mono);
             align-self: flex-start;
             border-left: 2px solid var(--success);
+            max-width: 100%;
         }
         .thinking {
             background: #23232a;
-            padding: 6px 10px;
+            padding: 4px 8px;
             border-radius: var(--radius-md);
-            font-size: 12px;
+            font-size: 11px;
             font-style: italic;
             border-left: 2px solid var(--warning);
-            margin: 6px 0;
+            margin: 4px 0;
         }
         pre {
             background: var(--code-bg);
             border: 1px solid var(--code-border);
             border-radius: var(--radius-md);
-            padding: 10px;
+            padding: 8px;
             overflow-x: auto;
-            font-size: 12px;
+            font-size: 11px;
             font-family: var(--font-mono);
-            margin: 8px 0;
+            margin: 6px 0;
             color: var(--text-secondary);
         }
         .task-done {
             background: var(--success);
             color: #0f0f12;
             display: inline-block;
-            padding: 2px 10px;
+            padding: 2px 8px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 500;
         }
         .waiting-pill {
             background: var(--warning);
             color: #0f0f12;
             display: inline-block;
-            padding: 2px 10px;
+            padding: 2px 8px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
         }
         .input-area {
-            padding: 16px;
+            padding: 12px;
             background: var(--bg-chat);
             border-top: 1px solid var(--border);
             display: flex;
-            gap: 12px;
+            gap: 10px;
         }
         textarea {
             flex: 1;
             background: #25252c;
             border: 1px solid var(--border);
             border-radius: 24px;
-            padding: 10px 16px;
+            padding: 8px 14px;
             font-family: var(--font-sans);
             font-size: 13px;
             resize: none;
@@ -431,22 +435,22 @@
             flex-direction: column;
             flex-shrink: 0;
             transition: height 0.2s ease;
-            height: 200px;
+            height: 180px;
         }
         .terminal-panel.collapsed {
-            height: 36px;
+            height: 34px;
         }
         .terminal-panel.collapsed .console-log {
             display: none;
         }
         .terminal-header {
-            padding: 6px 12px;
+            padding: 4px 12px;
             background: #141416;
             border-bottom: 1px solid var(--border);
             display: flex;
             gap: 16px;
             align-items: center;
-            font-size: 12px;
+            font-size: 11px;
             flex-shrink: 0;
         }
         .terminal-header span {
@@ -458,22 +462,22 @@
         }
         .terminal-header button {
             background: #25252c;
-            padding: 2px 10px;
-            font-size: 11px;
+            padding: 2px 8px;
+            font-size: 10px;
             margin-left: auto;
         }
         .console-log {
             flex: 1;
             overflow-y: auto;
-            padding: 8px 12px;
+            padding: 6px 12px;
             font-family: var(--font-mono);
-            font-size: 11px;
+            font-size: 10px;
             line-height: 1.4;
         }
         .log-entry {
             margin: 2px 0;
             border-left: 2px solid transparent;
-            padding-left: 8px;
+            padding-left: 6px;
         }
         .log-info { border-left-color: var(--accent); color: #a1a1aa; }
         .log-error { border-left-color: var(--danger); color: #fca5a5; }
@@ -481,7 +485,7 @@
         .log-success { border-left-color: var(--success); }
         .log-time {
             color: var(--text-tertiary);
-            margin-right: 10px;
+            margin-right: 8px;
         }
         .collapse-btn {
             background: transparent;
@@ -501,7 +505,8 @@
             left: 50%;
             transform: translate(-50%, -50%);
             width: 80%;
-            height: 80%;
+            max-width: 500px;
+            max-height: 85%;
             background: var(--bg-sidebar);
             border-radius: var(--radius-xl);
             z-index: 1000;
@@ -516,12 +521,86 @@
             border-radius: var(--radius-xl) var(--radius-xl) 0 0;
             display: flex;
             justify-content: space-between;
+            align-items: center;
             color: var(--text-primary);
+            border-bottom: 1px solid var(--border);
         }
-        .modal iframe {
-            flex: 1;
-            border: none;
-            background: white;
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .settings-section {
+            background: #1a1a1f;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+        .settings-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--accent);
+        }
+        .input-group {
+            margin-bottom: 14px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            background: #0f0f12;
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            color: var(--text-primary);
+            outline: none;
+        }
+        .input-group input:focus, .input-group select:focus {
+            border-color: var(--accent);
+        }
+        .info-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        .info-link {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .info-link:hover {
+            text-decoration: underline;
+        }
+        .download-btn {
+            background: var(--accent-soft);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+            color: var(--accent);
+        }
+        .download-btn:hover {
+            background: var(--accent);
+            color: #0f0f12;
+        }
+        .modal-footer {
+            padding: 12px 20px;
+            background: #141416;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
         }
         .hidden {
             display: none;
@@ -537,9 +616,9 @@
         .preview-btn {
             background: var(--accent-soft);
             border: 1px solid var(--border);
-            padding: 3px 10px;
+            padding: 2px 8px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             color: var(--accent);
             cursor: pointer;
         }
@@ -548,9 +627,9 @@
             color: #0f0f12;
         }
         .qr-img {
-            max-width: 120px;
+            max-width: 100px;
             border-radius: var(--radius-md);
-            margin: 6px 0;
+            margin: 4px 0;
             background: white;
             padding: 4px;
         }
@@ -566,8 +645,8 @@
             margin-top: 8px;
         }
         ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 5px;
+            height: 5px;
         }
         ::-webkit-scrollbar-track {
             background: var(--bg-sidebar);
@@ -576,53 +655,50 @@
             background: var(--border-light);
             border-radius: 3px;
         }
+        i.icon-fw {
+            width: 1.25em;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 <div class="app">
     <div class="top-bar">
         <div class="logo-area">
-            <span class="logo-icon">∞</span>
+            <i class="fas fa-infinity logo-icon"></i>
             <span class="logo-text">MuYanCoding</span>
             <div class="mode-switch" id="modeSwitch">
-                <span class="mode-option active" data-mode="coding">CodingAgent</span>
-                <span class="mode-option" data-mode="agent">Agent</span>
+                <span class="mode-option active" data-mode="coding"><i class="fas fa-code"></i><span>CodingAgent</span></span>
+                <span class="mode-option" data-mode="agent"><i class="fas fa-comments"></i><span>Agent</span></span>
             </div>
         </div>
         <div class="api-panel">
-            <input type="text" id="apiKey" placeholder="DeepSeek API Key" style="width: 200px;">
-            <select id="modelSelect">
-                <option value="deepseek-chat">deepseek-chat</option>
-                <option value="deepseek-coder">deepseek-coder</option>
-                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
-                <option value="deepseek-v4-pro">deepseek-v4-pro</option>
-            </select>
-            <button id="saveKeyBtn" class="primary">保存</button>
-            <button id="stopBtn" class="danger">停止</button>
-            <button id="clearMemoryBtn">🧹 清除记忆</button>
-            <div class="token-display" id="tokenDisplay">📊 0 tokens</div>
-            <div class="status-badge" id="status">⚪ 空闲</div>
+            <button id="settingsBtn"><i class="fas fa-sliders-h"></i> 设置</button>
+            <button id="stopBtn" class="danger"><i class="fas fa-stop"></i> 停止</button>
+            <button id="clearMemoryBtn"><i class="fas fa-trash-alt"></i> 清除</button>
+            <div class="token-display" id="tokenDisplay"><i class="fas fa-chart-simple"></i> 0 tok</div>
+            <div class="status-badge" id="status"><i class="fas fa-circle"></i> 空闲</div>
         </div>
     </div>
     <div class="main-layout">
         <div class="workspace-area" id="workspaceArea">
             <div class="sidebar">
                 <div class="file-header">
-                    <span>📁 资源管理器</span>
+                    <span><i class="fas fa-folder-open"></i> 资源管理器</span>
                     <div class="file-header-actions">
-                        <button id="newFileBtn" title="新建文件">📄</button>
-                        <button id="newFolderBtn" title="新建文件夹">📁</button>
+                        <button id="newFileBtn" title="新建文件"><i class="fas fa-file"></i></button>
+                        <button id="newFolderBtn" title="新建文件夹"><i class="fas fa-folder"></i></button>
                     </div>
                 </div>
                 <div class="file-tree" id="fileTree"></div>
             </div>
             <div class="center-area">
                 <div class="editor-toolbar">
-                    <span id="curFile">未选择文件</span>
-                    <div style="display: flex; gap: 8px;">
-                        <button id="saveFileBtn">💾 保存</button>
-                        <button id="downloadBtn">📥 下载</button>
-                        <button id="manualPreviewBtn" class="preview-btn hidden">🌐 预览</button>
+                    <span id="curFile"><i class="fas fa-file-code"></i> 未选择文件</span>
+                    <div style="display: flex; gap: 6px;">
+                        <button id="saveFileBtn"><i class="fas fa-save"></i> 保存</button>
+                        <button id="downloadBtn"><i class="fas fa-download"></i> 下载</button>
+                        <button id="manualPreviewBtn" class="preview-btn hidden"><i class="fas fa-globe"></i> 预览</button>
                     </div>
                 </div>
                 <textarea id="editor" placeholder="编辑代码... MuYanCoding 将自动处理文件操作"></textarea>
@@ -631,24 +707,54 @@
         <div class="right-panel">
             <div class="messages" id="messages"></div>
             <div class="input-area">
-                <textarea id="prompt" rows="1" placeholder="描述任务，AI 将使用工具完成..."></textarea>
-                <button id="sendBtn" class="primary">发送</button>
+                <textarea id="prompt" rows="1" placeholder="描述任务..."></textarea>
+                <button id="sendBtn" class="primary"><i class="fas fa-paper-plane"></i> 发送</button>
             </div>
         </div>
     </div>
     <div class="terminal-panel" id="terminalPanel">
         <div class="terminal-header">
-            <span id="consoleTabLog" class="active">📋 执行日志</span>
-            <button id="exportPdfBtn">导出 PDF</button>
-            <span id="consoleTabClear">🗑️ 清空</span>
-            <button id="collapseTerminalBtn" class="collapse-btn" title="折叠/展开">▼</button>
+            <span id="consoleTabLog" class="active"><i class="fas fa-terminal"></i> 执行日志</span>
+            <button id="exportPdfBtn"><i class="fas fa-file-pdf"></i> 导出 PDF</button>
+            <span id="consoleTabClear"><i class="fas fa-eraser"></i> 清空</span>
+            <button id="collapseTerminalBtn" class="collapse-btn" title="折叠/展开"><i class="fas fa-chevron-down"></i></button>
         </div>
         <div class="console-log" id="consoleLog"></div>
     </div>
 </div>
 <div id="previewModal" class="modal hidden">
-    <div class="modal-header"><span>🌐 实时预览</span><button id="closePreview">✖</button></div>
+    <div class="modal-header"><span><i class="fas fa-globe"></i> 实时预览</span><button id="closePreview"><i class="fas fa-times"></i></button></div>
     <iframe id="previewFrame"></iframe>
+</div>
+<div id="settingsModal" class="modal hidden">
+    <div class="modal-header"><span><i class="fas fa-cog"></i> 设置</span><button id="closeSettingsBtn"><i class="fas fa-times"></i></button></div>
+    <div class="modal-body">
+        <div class="settings-section">
+            <div class="settings-section-title"><i class="fas fa-key"></i> API 配置</div>
+            <div class="input-group">
+                <label>DeepSeek API Key</label>
+                <input type="text" id="settingsApiKey" placeholder="sk-...">
+            </div>
+            <div class="input-group">
+                <label>模型选择</label>
+                <select id="settingsModelSelect">
+                    <option value="deepseek-chat">deepseek-chat</option>
+                    <option value="deepseek-coder">deepseek-coder</option>
+                    <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                    <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+                </select>
+            </div>
+            <button id="saveSettingsBtn" class="primary" style="width:100%;"><i class="fas fa-save"></i> 保存设置</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title"><i class="fas fa-info-circle"></i> 关于</div>
+            <div class="info-text"><i class="fas fa-user-astronaut"></i> 开发者：CCWMORAN 慕然科技 @Morgan</div>
+            <div class="info-text"><i class="fas fa-link"></i> 官网：<a href="https://www.ccwmoran.top" target="_blank" class="info-link">www.ccwmoran.top</a></div>
+            <div class="info-text"><i class="fas fa-mobile-alt"></i> 移动端 App：即将上线</div>
+            <button id="appDownloadBtn" class="download-btn"><i class="fas fa-download"></i> 预约下载（即将上线）</button>
+        </div>
+    </div>
+    <div class="modal-footer"><button id="closeSettingsFooterBtn">关闭</button></div>
 </div>
 
 <script>
@@ -721,15 +827,18 @@
                 const div = document.createElement('div'); div.className = 'tree-item' + (currentFilePath === child.fullPath && child.type === 'file' ? ' active' : '');
                 const contentDiv = document.createElement('div'); contentDiv.className = 'tree-item-content';
                 if (child.type === 'folder') {
-                    const toggleSpan = document.createElement('span'); toggleSpan.className = 'folder-toggle'; toggleSpan.textContent = child.expanded ? '▼' : '▶';
+                    const toggleSpan = document.createElement('span'); toggleSpan.className = 'folder-toggle';
+                    toggleSpan.innerHTML = child.expanded ? '<i class="fas fa-chevron-down"></i>' : '<i class="fas fa-chevron-right"></i>';
                     toggleSpan.onclick = (e) => { e.stopPropagation(); if (child.expanded) expandedFolders.delete(child.fullPath); else expandedFolders.add(child.fullPath); renderFullTree(); };
                     contentDiv.appendChild(toggleSpan);
-                    const iconSpan = document.createElement('span'); iconSpan.className = 'item-icon'; iconSpan.textContent = child.expanded ? '📂' : '📁';
+                    const iconSpan = document.createElement('span'); iconSpan.className = 'item-icon';
+                    iconSpan.innerHTML = child.expanded ? '<i class="fas fa-folder-open"></i>' : '<i class="fas fa-folder"></i>';
                     contentDiv.appendChild(iconSpan);
                 } else {
-                    const toggleSpan = document.createElement('span'); toggleSpan.className = 'folder-toggle'; toggleSpan.textContent = '  ';
+                    const toggleSpan = document.createElement('span'); toggleSpan.className = 'folder-toggle'; toggleSpan.innerHTML = '&nbsp;&nbsp;';
                     contentDiv.appendChild(toggleSpan);
-                    const iconSpan = document.createElement('span'); iconSpan.className = 'item-icon'; iconSpan.textContent = '📄';
+                    const iconSpan = document.createElement('span'); iconSpan.className = 'item-icon';
+                    iconSpan.innerHTML = '<i class="fas fa-file-alt"></i>';
                     contentDiv.appendChild(iconSpan);
                 }
                 const nameSpan = document.createElement('span'); nameSpan.textContent = name;
@@ -737,13 +846,13 @@
                 div.appendChild(contentDiv);
                 const actions = document.createElement('div'); actions.className = 'item-actions';
                 if (child.type === 'file') {
-                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✏️'; renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); }; actions.appendChild(renameBtn);
-                    const delBtn = document.createElement('button'); delBtn.textContent = '🗑️'; delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); }; actions.appendChild(delBtn);
+                    const renameBtn = document.createElement('button'); renameBtn.innerHTML = '<i class="fas fa-edit"></i>'; renameBtn.title = '重命名'; renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); }; actions.appendChild(renameBtn);
+                    const delBtn = document.createElement('button'); delBtn.innerHTML = '<i class="fas fa-trash"></i>'; delBtn.title = '删除'; delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); }; actions.appendChild(delBtn);
                 } else {
-                    const newFileBtn = document.createElement('button'); newFileBtn.textContent = '📄'; newFileBtn.onclick = (e) => { e.stopPropagation(); createFileInFolder(child.fullPath); }; actions.appendChild(newFileBtn);
-                    const newFolderBtn = document.createElement('button'); newFolderBtn.textContent = '📁'; newFolderBtn.onclick = (e) => { e.stopPropagation(); createFolderInFolder(child.fullPath); }; actions.appendChild(newFolderBtn);
-                    const renameBtn = document.createElement('button'); renameBtn.textContent = '✏️'; renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); }; actions.appendChild(renameBtn);
-                    const delBtn = document.createElement('button'); delBtn.textContent = '🗑️'; delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); }; actions.appendChild(delBtn);
+                    const newFileBtn = document.createElement('button'); newFileBtn.innerHTML = '<i class="fas fa-file"></i>'; newFileBtn.title = '新建文件'; newFileBtn.onclick = (e) => { e.stopPropagation(); createFileInFolder(child.fullPath); }; actions.appendChild(newFileBtn);
+                    const newFolderBtn = document.createElement('button'); newFolderBtn.innerHTML = '<i class="fas fa-folder"></i>'; newFolderBtn.title = '新建文件夹'; newFolderBtn.onclick = (e) => { e.stopPropagation(); createFolderInFolder(child.fullPath); }; actions.appendChild(newFolderBtn);
+                    const renameBtn = document.createElement('button'); renameBtn.innerHTML = '<i class="fas fa-edit"></i>'; renameBtn.onclick = (e) => { e.stopPropagation(); renameNode(child.fullPath, child.type); }; actions.appendChild(renameBtn);
+                    const delBtn = document.createElement('button'); delBtn.innerHTML = '<i class="fas fa-trash"></i>'; delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(child.fullPath); }; actions.appendChild(delBtn);
                 }
                 div.appendChild(actions);
                 div.onclick = (e) => { if (e.target.closest('.item-actions')) return; if (child.type === 'file') openFile(child.fullPath); };
@@ -753,21 +862,39 @@
             }
         }
         function renderFullTree() { const container = document.getElementById('fileTree'); if (!container) return; container.innerHTML = ''; const root = buildTree(); const rootUl = document.createElement('ul'); rootUl.className = 'tree-node'; renderTree(root, rootUl); container.appendChild(rootUl); }
-        function openFile(path) { if (virtualFs[path] && virtualFs[path].type === 'file') { currentFilePath = path; document.getElementById('editor').value = virtualFs[path].content || ''; document.getElementById('curFile').innerText = path; renderFullTree(); const previewBtn = document.getElementById('manualPreviewBtn'); if (path.endsWith('.html') || path.endsWith('.htm')) previewBtn.classList.remove('hidden'); else previewBtn.classList.add('hidden'); } }
+        function openFile(path) { if (virtualFs[path] && virtualFs[path].type === 'file') { currentFilePath = path; document.getElementById('editor').value = virtualFs[path].content || ''; document.getElementById('curFile').innerHTML = '<i class="fas fa-file-code"></i> ' + path; renderFullTree(); const previewBtn = document.getElementById('manualPreviewBtn'); if (path.endsWith('.html') || path.endsWith('.htm')) previewBtn.classList.remove('hidden'); else previewBtn.classList.add('hidden'); } }
         function saveCurrentFile() { if (!currentFilePath) { addFeedbackMsg('请先选择文件'); return; } const content = document.getElementById('editor').value; if (virtualFs[currentFilePath]) { virtualFs[currentFilePath].content = content; virtualFs[currentFilePath].mtime = Date.now(); addFeedbackMsg(`💾 已保存 ${currentFilePath}`); renderFullTree(); } else addFeedbackMsg('文件不存在'); }
         function createFile(path, content = '') { const normalized = normalizePath(path); if (virtualFs[normalized]) return false; const dir = getDirPath(normalized); if (dir && !virtualFs[dir]) ensureDirExists(dir); virtualFs[normalized] = { type: 'file', content: content, mtime: Date.now() }; renderFullTree(); openFile(normalized); addFeedbackMsg(`📄 创建文件: ${normalized}`); return true; }
         function createFolder(path) { const normalized = normalizePath(path); if (virtualFs[normalized]) return false; const dir = getDirPath(normalized); if (dir && !virtualFs[dir]) ensureDirExists(dir); virtualFs[normalized] = { type: 'folder', children: {}, mtime: Date.now() }; renderFullTree(); addFeedbackMsg(`📁 创建文件夹: ${normalized}`); return true; }
         function createFileInFolder(folderPath) { let name = prompt('文件名:', '新文件.txt'); if (!name) return; if (name.includes('/') || name.includes('\\')) { alert('文件名不能包含路径分隔符'); return; } const newPath = folderPath ? folderPath + '/' + name : name; createFile(newPath, ''); }
         function createFolderInFolder(folderPath) { let name = prompt('文件夹名:', '新文件夹'); if (!name) return; if (name.includes('/') || name.includes('\\')) { alert('文件夹名不能包含路径分隔符'); return; } const newPath = folderPath ? folderPath + '/' + name : name; createFolder(newPath); }
-        function renameNode(oldPath, type) { let newBase = prompt(`重命名 ${getBaseName(oldPath)}`, getBaseName(oldPath)); if (!newBase || newBase === getBaseName(oldPath)) return; if (newBase.includes('/') || newBase.includes('\\')) { alert('名称不能包含路径分隔符'); return; } const dir = getDirPath(oldPath); const newPath = dir ? dir + '/' + newBase : newBase; if (virtualFs[newPath]) { alert('目标已存在'); return; } if (type === 'file') { virtualFs[newPath] = { ...virtualFs[oldPath], type: 'file' }; delete virtualFs[oldPath]; if (currentFilePath === oldPath) { currentFilePath = newPath; document.getElementById('editor').value = virtualFs[newPath].content || ''; document.getElementById('curFile').innerText = newPath; } } else { const childrenToMove = Object.keys(virtualFs).filter(p => p.startsWith(oldPath + '/') || p === oldPath); for (let child of childrenToMove) { const relative = child.substring(oldPath.length); const newChildPath = newPath + relative; virtualFs[newChildPath] = virtualFs[child]; delete virtualFs[child]; } virtualFs[newPath] = { type: 'folder', mtime: Date.now() }; if (currentFilePath && currentFilePath.startsWith(oldPath)) { currentFilePath = newPath + currentFilePath.substring(oldPath.length); if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || ''; document.getElementById('curFile').innerText = currentFilePath; } if (expandedFolders.has(oldPath)) { expandedFolders.delete(oldPath); expandedFolders.add(newPath); } delete virtualFs[oldPath]; } renderFullTree(); addFeedbackMsg(`✏️ 已重命名: ${oldPath} → ${newPath}`); }
-        function deleteNode(path) { if (!confirm(`确定删除 ${path} 吗？`)) return; const toDelete = Object.keys(virtualFs).filter(p => p === path || p.startsWith(path + '/')); for (let p of toDelete) { if (expandedFolders.has(p)) expandedFolders.delete(p); delete virtualFs[p]; } if (currentFilePath && (currentFilePath === path || currentFilePath.startsWith(path + '/'))) { currentFilePath = null; document.getElementById('editor').value = ''; document.getElementById('curFile').innerText = '未选择文件'; document.getElementById('manualPreviewBtn').classList.add('hidden'); } renderFullTree(); addFeedbackMsg(`🗑️ 已删除: ${path}`); }
-        function moveNode(sourcePath, targetPath) { const srcNorm = normalizePath(sourcePath); const tgtNorm = normalizePath(targetPath); if (!virtualFs[srcNorm]) return `❌ 源路径不存在: ${srcNorm}`; if (virtualFs[tgtNorm]) return `❌ 目标路径已存在: ${tgtNorm}`; if (srcNorm === tgtNorm) return `❌ 路径相同`; if (tgtNorm.startsWith(srcNorm + '/')) return `❌ 不能移动到自身内部`; const targetDir = getDirPath(tgtNorm); if (targetDir && !virtualFs[targetDir]) ensureDirExists(targetDir); const type = virtualFs[srcNorm].type; if (type === 'file') { virtualFs[tgtNorm] = { ...virtualFs[srcNorm], type: 'file' }; delete virtualFs[srcNorm]; if (currentFilePath === srcNorm) { currentFilePath = tgtNorm; document.getElementById('editor').value = virtualFs[tgtNorm].content || ''; document.getElementById('curFile').innerText = tgtNorm; } } else { const childrenToMove = Object.keys(virtualFs).filter(p => p === srcNorm || p.startsWith(srcNorm + '/')); for (let child of childrenToMove) { const relative = child.substring(srcNorm.length); const newChildPath = tgtNorm + relative; virtualFs[newChildPath] = virtualFs[child]; delete virtualFs[child]; } if (expandedFolders.has(srcNorm)) { expandedFolders.delete(srcNorm); expandedFolders.add(tgtNorm); } if (currentFilePath && currentFilePath.startsWith(srcNorm)) { currentFilePath = tgtNorm + currentFilePath.substring(srcNorm.length); if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || ''; document.getElementById('curFile').innerText = currentFilePath; } } renderFullTree(); return `✅ 已移动: ${srcNorm} → ${tgtNorm}`; }
+        function renameNode(oldPath, type) { let newBase = prompt(`重命名 ${getBaseName(oldPath)}`, getBaseName(oldPath)); if (!newBase || newBase === getBaseName(oldPath)) return; if (newBase.includes('/') || newBase.includes('\\')) { alert('名称不能包含路径分隔符'); return; } const dir = getDirPath(oldPath); const newPath = dir ? dir + '/' + newBase : newBase; if (virtualFs[newPath]) { alert('目标已存在'); return; } if (type === 'file') { virtualFs[newPath] = { ...virtualFs[oldPath], type: 'file' }; delete virtualFs[oldPath]; if (currentFilePath === oldPath) { currentFilePath = newPath; document.getElementById('editor').value = virtualFs[newPath].content || ''; document.getElementById('curFile').innerHTML = '<i class="fas fa-file-code"></i> ' + newPath; } } else { const childrenToMove = Object.keys(virtualFs).filter(p => p.startsWith(oldPath + '/') || p === oldPath); for (let child of childrenToMove) { const relative = child.substring(oldPath.length); const newChildPath = newPath + relative; virtualFs[newChildPath] = virtualFs[child]; delete virtualFs[child]; } virtualFs[newPath] = { type: 'folder', mtime: Date.now() }; if (currentFilePath && currentFilePath.startsWith(oldPath)) { currentFilePath = newPath + currentFilePath.substring(oldPath.length); if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || ''; document.getElementById('curFile').innerHTML = '<i class="fas fa-file-code"></i> ' + currentFilePath; } if (expandedFolders.has(oldPath)) { expandedFolders.delete(oldPath); expandedFolders.add(newPath); } delete virtualFs[oldPath]; } renderFullTree(); addFeedbackMsg(`✏️ 已重命名: ${oldPath} → ${newPath}`); }
+        function deleteNode(path) { if (!confirm(`确定删除 ${path} 吗？`)) return; const toDelete = Object.keys(virtualFs).filter(p => p === path || p.startsWith(path + '/')); for (let p of toDelete) { if (expandedFolders.has(p)) expandedFolders.delete(p); delete virtualFs[p]; } if (currentFilePath && (currentFilePath === path || currentFilePath.startsWith(path + '/'))) { currentFilePath = null; document.getElementById('editor').value = ''; document.getElementById('curFile').innerHTML = '<i class="fas fa-file-code"></i> 未选择文件'; document.getElementById('manualPreviewBtn').classList.add('hidden'); } renderFullTree(); addFeedbackMsg(`🗑️ 已删除: ${path}`); }
+        function moveNode(sourcePath, targetPath) { const srcNorm = normalizePath(sourcePath); const tgtNorm = normalizePath(targetPath); if (!virtualFs[srcNorm]) return `❌ 源路径不存在: ${srcNorm}`; if (virtualFs[tgtNorm]) return `❌ 目标路径已存在: ${tgtNorm}`; if (srcNorm === tgtNorm) return `❌ 路径相同`; if (tgtNorm.startsWith(srcNorm + '/')) return `❌ 不能移动到自身内部`; const targetDir = getDirPath(tgtNorm); if (targetDir && !virtualFs[targetDir]) ensureDirExists(targetDir); const type = virtualFs[srcNorm].type; if (type === 'file') { virtualFs[tgtNorm] = { ...virtualFs[srcNorm], type: 'file' }; delete virtualFs[srcNorm]; if (currentFilePath === srcNorm) { currentFilePath = tgtNorm; document.getElementById('editor').value = virtualFs[tgtNorm].content || ''; document.getElementById('curFile').innerHTML = '<i class="fas fa-file-code"></i> ' + tgtNorm; } } else { const childrenToMove = Object.keys(virtualFs).filter(p => p === srcNorm || p.startsWith(srcNorm + '/')); for (let child of childrenToMove) { const relative = child.substring(srcNorm.length); const newChildPath = tgtNorm + relative; virtualFs[newChildPath] = virtualFs[child]; delete virtualFs[child]; } if (expandedFolders.has(srcNorm)) { expandedFolders.delete(srcNorm); expandedFolders.add(tgtNorm); } if (currentFilePath && currentFilePath.startsWith(srcNorm)) { currentFilePath = tgtNorm + currentFilePath.substring(srcNorm.length); if (virtualFs[currentFilePath]?.type === 'file') document.getElementById('editor').value = virtualFs[currentFilePath].content || ''; document.getElementById('curFile').innerHTML = '<i class="fas fa-file-code"></i> ' + currentFilePath; } } renderFullTree(); return `✅ 已移动: ${srcNorm} → ${tgtNorm}`; }
         function readFileContent(path) { const norm = normalizePath(path); if (!virtualFs[norm]) return `❌ 文件不存在: ${norm}`; if (virtualFs[norm].type !== 'file') return `❌ 不是文件`; const content = virtualFs[norm].content || ''; const preview = content.length > 2000 ? content.substring(0,2000)+'\n...(截断)' : content; return `✅ 文件 ${norm} 内容:\n${preview}`; }
         function searchFilesByKeyword(keyword) { if (!keyword.trim()) return `❌ 关键词无效`; const kw = keyword.toLowerCase(); const matches = []; for (let path in virtualFs) if (virtualFs[path].type === 'file' && path.toLowerCase().includes(kw)) matches.push(path); if (matches.length === 0) return `🔍 未找到包含 "${keyword}" 的文件`; return `🔍 找到 ${matches.length} 个匹配文件:\n${matches.join('\n')}`; }
         function downloadCurrentFile() { if (!currentFilePath) { addFeedbackMsg('无可下载文件'); return; } const content = virtualFs[currentFilePath]?.content || ''; const blob = new Blob([content]); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = getBaseName(currentFilePath); a.click(); URL.revokeObjectURL(a.href); }
-        function clearContextMemory() { conversationHistory = []; document.getElementById('messages').innerHTML = ''; totalTokensUsed = 0; updateTokenDisplay(); addFeedbackMsg('🧹 上下文记忆已清除'); addConsoleLog('🧹 Agent 上下文记忆已清除', 'info'); }
-        function updateTokenDisplay() { document.getElementById('tokenDisplay').innerText = `📊 ${totalTokensUsed} tokens`; }
+        function clearContextMemory() { conversationHistory = []; document.getElementById('messages').innerHTML = ''; totalTokensUsed = 0; updateTokenDisplay(); addFeedbackMsg('🧹 上下文记忆已清除'); addConsoleLog('🧹 Agent 上下文记忆已清除，对话历史已清空', 'info'); }
+        function updateTokenDisplay() { document.getElementById('tokenDisplay').innerHTML = '<i class="fas fa-chart-simple"></i> ' + totalTokensUsed + ' tok'; }
         function estimateTokens(text) { if (!text) return 0; let chinese = (text.match(/[\u4e00-\u9fa5]/g) || []).length; let other = text.length - chinese; return Math.ceil(other / 3.5 + chinese / 1.5); }
+
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsApiKey = document.getElementById('settingsApiKey');
+        const settingsModelSelect = document.getElementById('settingsModelSelect');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const closeSettingsFooterBtn = document.getElementById('closeSettingsFooterBtn');
+        const appDownloadBtn = document.getElementById('appDownloadBtn');
+        function openSettingsModal() { settingsModal.classList.remove('hidden'); }
+        function closeSettingsModal() { settingsModal.classList.add('hidden'); }
+        settingsBtn.onclick = openSettingsModal;
+        closeSettingsBtn.onclick = closeSettingsModal;
+        closeSettingsFooterBtn.onclick = closeSettingsModal;
+        if (appDownloadBtn) appDownloadBtn.onclick = () => alert('移动端 App 即将上线，敬请期待！');
+        function loadSettingsToModal() { settingsApiKey.value = apiKey; settingsModelSelect.value = selectedModel; }
+        function saveSettings() { apiKey = settingsApiKey.value.trim(); selectedModel = settingsModelSelect.value; localStorage.setItem('muyan_api', apiKey); addFeedbackMsg('✅ API Key 和模型设置已保存'); addConsoleLog(`API设置已更新，模型: ${selectedModel}`, 'success'); closeSettingsModal(); }
+        saveSettingsBtn.onclick = saveSettings;
 
         window.executeFileOperation = async function(operation, path, content = null, target = null) {
             if (currentMode !== 'coding') return `❌ 当前为 Agent 模式，无法使用文件/文件夹工具。请切换到 CodingAgent 模式使用资源管理器功能。`;
@@ -807,7 +934,12 @@
                 { regex: /<show-notification\s+title="([^"]*)"\s+body="([^"]*)"\s*\/>/g, name: 'show-notification', handler: async (m) => { try { if (Notification.permission === "granted") new Notification(m[1]||"通知", {body:m[2]}); else if (Notification.permission !== "denied") await Notification.requestPermission(); return `🔔 通知已发送`; } catch(e) { return `❌ 通知失败: ${e.message}`; } } },
                 { regex: /<qr-code(?:\s+size="(\d+)")?>([\s\S]*?)<\/qr-code>/g, name: 'qr-code', handler: async (m) => { let size = m[1]?parseInt(m[1]):120; let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(m[2].trim())}`; return `<img src="${qrUrl}" class="qr-img" style="max-width:${size}px">`; } },
                 { regex: /<text-statistics>([\s\S]*?)<\/text-statistics>/g, name: 'text-statistics', handler: async (m) => { let text=m[1], chars=text.length, words=text.trim().split(/\s+/).filter(w=>w).length, lines=text.split(/\r?\n/).length, readingTime=Math.ceil(words/200); return `📊 字符:${chars}, 单词:${words}, 行数:${lines}, 预估阅读:${readingTime}分钟`; } },
-                { regex: /<json-validator>([\s\S]*?)<\/json-validator>/g, name: 'json-validator', handler: async (m) => { try { JSON.parse(m[1]); return `✅ JSON 有效`; } catch(e) { return `❌ JSON 无效: ${e.message}`; } } }
+                { regex: /<json-validator>([\s\S]*?)<\/json-validator>/g, name: 'json-validator', handler: async (m) => { try { JSON.parse(m[1]); return `✅ JSON 有效`; } catch(e) { return `❌ JSON 无效: ${e.message}`; } } },
+                { regex: /<random-password(?:\s+length="(\d+)")?\s*\/>/g, name: 'random-password', handler: async (m) => { let len = m[1] ? parseInt(m[1]) : 12; const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+'; let pwd = ''; for (let i=0; i<len; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length)); return `🔐 随机密码 (${len}位): ${pwd}`; } },
+                { regex: /<reverse-string>([\s\S]*?)<\/reverse-string>/g, name: 'reverse-string', handler: async (m) => { let rev = m[1].split('').reverse().join(''); return `🔄 反转结果: ${rev}`; } },
+                { regex: /<caesar-encrypt\s+shift="(\d+)"\s*>([\s\S]*?)<\/caesar-encrypt>/g, name: 'caesar-encrypt', handler: async (m) => { let shift = parseInt(m[1]) % 26; let text = m[2]; let result = ''; for (let i=0; i<text.length; i++) { let c = text[i]; if (c >= 'a' && c <= 'z') result += String.fromCharCode(((c.charCodeAt(0)-97+shift)%26)+97); else if (c >= 'A' && c <= 'Z') result += String.fromCharCode(((c.charCodeAt(0)-65+shift)%26)+65); else result += c; } return `🔒 凯撒加密 (shift=${shift}): ${result}`; } },
+                { regex: /<url-encode>([\s\S]*?)<\/url-encode>/g, name: 'url-encode', handler: async (m) => { let encoded = encodeURIComponent(m[1]); return `🌐 URL编码: ${encoded}`; } },
+                { regex: /<url-decode>([\s\S]*?)<\/url-decode>/g, name: 'url-decode', handler: async (m) => { try { let decoded = decodeURIComponent(m[1]); return `🌐 URL解码: ${decoded}`; } catch(e) { return `❌ 解码失败: ${e.message}`; } } }
             ];
             for (let pattern of toolPatterns) {
                 let match;
@@ -830,12 +962,12 @@
         }
 
         function addConsoleLog(message, type) { const entry = document.createElement('div'); entry.className = `log-entry log-${type}`; entry.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${escapeHtml(message)}`; document.getElementById('consoleLog').appendChild(entry); entry.scrollIntoView({block:'nearest'}); }
-        function addFeedbackMsg(text) { const div = document.createElement('div'); div.className = 'msg feedback-msg'; div.innerHTML = `🔧 ${escapeHtml(text)}`; document.getElementById('messages').appendChild(div); div.scrollIntoView({behavior:'smooth'}); }
+        function addFeedbackMsg(text) { const div = document.createElement('div'); div.className = 'msg feedback-msg'; div.innerHTML = `<i class="fas fa-tools"></i> ${escapeHtml(text)}`; document.getElementById('messages').appendChild(div); div.scrollIntoView({behavior:'smooth'}); }
         function addUserMsg(text) { const div = document.createElement('div'); div.className = 'msg user-msg'; div.innerHTML = escapeHtml(text); document.getElementById('messages').appendChild(div); div.scrollIntoView({behavior:'smooth'}); }
         function addAgentMsgWithStream() { const div = document.createElement('div'); div.className = 'msg agent-msg'; document.getElementById('messages').appendChild(div); div.scrollIntoView({behavior:'smooth'}); return div; }
         function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]); }
 
-        initDefaultFs(); renderFullTree();
+        initDefaultFs(); renderFullTree(); loadSettingsToModal();
 
         function setMode(mode) {
             currentMode = mode;
@@ -844,40 +976,33 @@
             const agentOpt = document.querySelector('[data-mode="agent"]');
             if (mode === 'coding') {
                 workspaceArea.classList.remove('hidden');
-                codingOpt.classList.add('active');
-                agentOpt.classList.remove('active');
-                addFeedbackMsg('✅ 已切换到 CodingAgent 模式。资源管理器和编辑器已显示，文件/文件夹工具可用，模型将严格输出工具标签。');
+                codingOpt.classList.add('active'); agentOpt.classList.remove('active');
+                addFeedbackMsg('✅ 已切换到 CodingAgent 模式。资源管理器和编辑器已显示。');
                 addConsoleLog('模式切换: CodingAgent (完整工具集)', 'info');
             } else {
                 workspaceArea.classList.add('hidden');
-                agentOpt.classList.add('active');
-                codingOpt.classList.remove('active');
-                addFeedbackMsg('✅ 已切换到 Agent 模式。资源管理器和编辑器已隐藏，文件/文件夹工具不可用，模型可以输出自然语言。');
-                addConsoleLog('模式切换: Agent (自然语言模式，无文件工具)', 'info');
+                agentOpt.classList.add('active'); codingOpt.classList.remove('active');
+                addFeedbackMsg('✅ 已切换到 Agent 模式。资源管理器和编辑器已隐藏。');
+                addConsoleLog('模式切换: Agent (自然语言模式)', 'info');
             }
             if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; }
             clearContextMemory();
         }
 
-        document.querySelectorAll('.mode-option').forEach(opt => {
-            opt.addEventListener('click', () => { if (opt.dataset.mode === currentMode) return; setMode(opt.dataset.mode); });
-        });
-
+        document.querySelectorAll('.mode-option').forEach(opt => { opt.addEventListener('click', () => { if (opt.dataset.mode === currentMode) return; setMode(opt.dataset.mode); }); });
         document.getElementById('newFileBtn').onclick = () => { if (currentMode === 'coding') createFileInFolder(''); else addFeedbackMsg('❌ Agent 模式下无法使用文件操作'); };
         document.getElementById('newFolderBtn').onclick = () => { if (currentMode === 'coding') createFolderInFolder(''); else addFeedbackMsg('❌ Agent 模式下无法使用文件夹操作'); };
         document.getElementById('saveFileBtn').onclick = () => { if (currentMode === 'coding') saveCurrentFile(); else addFeedbackMsg('❌ Agent 模式下无法保存文件'); };
         document.getElementById('downloadBtn').onclick = () => { if (currentMode === 'coding') downloadCurrentFile(); else addFeedbackMsg('❌ Agent 模式下无法下载文件'); };
         document.getElementById('manualPreviewBtn').onclick = () => { if (currentFilePath && virtualFs[currentFilePath]) { document.getElementById('previewFrame').srcdoc = virtualFs[currentFilePath].content; document.getElementById('previewModal').classList.remove('hidden'); } };
         document.getElementById('closePreview').onclick = () => document.getElementById('previewModal').classList.add('hidden');
-        document.getElementById('saveKeyBtn').onclick = () => { apiKey = document.getElementById('apiKey').value.trim(); localStorage.setItem('muyan_api', apiKey); addFeedbackMsg('✅ API Key 已保存'); };
-        document.getElementById('modelSelect').onchange = (e) => { selectedModel = e.target.value; addConsoleLog(`切换模型: ${selectedModel}`, 'info'); };
-        document.getElementById('sendBtn').onclick = async () => { if (agentActive) { addFeedbackMsg('请先停止'); return; } let text = document.getElementById('prompt').value.trim(); if (!text) return; document.getElementById('prompt').value = ''; await runAgent(text); };
-        document.getElementById('stopBtn').onclick = () => { if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; addFeedbackMsg('⏹️ 已停止'); document.getElementById('status').innerText = '⚪ 已停止'; } };
+        document.getElementById('stopBtn').onclick = () => { if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; addFeedbackMsg('⏹️ 已停止'); document.getElementById('status').innerHTML = '<i class="fas fa-circle"></i> 已停止'; } };
         document.getElementById('clearMemoryBtn').onclick = clearContextMemory;
         document.getElementById('consoleTabClear').onclick = () => { document.getElementById('consoleLog').innerHTML = ''; addConsoleLog('控制台已清空', 'info'); };
         document.getElementById('exportPdfBtn').onclick = exportToPdf;
         const terminalPanel = document.getElementById('terminalPanel'); const collapseBtn = document.getElementById('collapseTerminalBtn'); let isTerminalCollapsed = false;
-        collapseBtn.addEventListener('click', () => { isTerminalCollapsed = !isTerminalCollapsed; if (isTerminalCollapsed) { terminalPanel.classList.add('collapsed'); collapseBtn.textContent = '▲'; } else { terminalPanel.classList.remove('collapsed'); collapseBtn.textContent = '▼'; } });
+        collapseBtn.addEventListener('click', () => { isTerminalCollapsed = !isTerminalCollapsed; if (isTerminalCollapsed) { terminalPanel.classList.add('collapsed'); collapseBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'; } else { terminalPanel.classList.remove('collapsed'); collapseBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'; } });
+        document.getElementById('sendBtn').onclick = async () => { if (agentActive) { addFeedbackMsg('请先停止'); return; } let text = document.getElementById('prompt').value.trim(); if (!text) return; document.getElementById('prompt').value = ''; await runAgent(text); };
 
         async function streamDeepSeek(messages, onChunk) { 
             if (!apiKey) throw new Error('请设置 API Key'); 
@@ -939,6 +1064,11 @@
 - <qr-code size="150">文本内容</qr-code> ：生成包含文本内容的二维码图片（尺寸可选，默认150px）。
 - <text-statistics>文本内容</text-statistics> ：统计文本的字符数、单词数、行数和预估阅读时间。
 - <json-validator>JSON字符串</json-validator> ：验证并格式化 JSON 字符串，返回可读格式。
+- <random-password length="12"/> ：生成指定长度的随机密码（默认12位，包含大小写字母、数字和特殊符号）。
+- <reverse-string>文本</reverse-string> ：将输入字符串反转。
+- <caesar-encrypt shift="3">文本</caesar-encrypt> ：对文本进行凯撒加密（移位量 shift，默认3）。
+- <url-encode>文本</url-encode> ：对文本进行 URL 编码。
+- <url-decode>文本</url-decode> ：对 URL 编码的字符串进行解码。
 
 五、任务管理
 - <task-down> 或 <task-done/> ：标记任务完成。输出此标签后，Agent 会停止当前任务。
@@ -962,17 +1092,6 @@
    <file-create path="index.html">Hello World</file-create>
    系统返回: ✅ 文件已创建: index.html
 2. <thinking>任务完成，输出结束标签</thinking>
-   <task-down/>
-
-用户: "搜索所有 .py 文件并读取第一个"
-正确执行序列:
-1. <thinking>先搜索所有.py文件</thinking>
-   <search-files keyword=".py"/>
-   系统返回: 🔍 找到 3 个匹配文件: app.py utils.py config.py
-2. <thinking>读取 app.py 的内容</thinking>
-   <read-file path="app.py"/>
-   系统返回: ✅ 文件 app.py 内容: ... 
-3. <thinking>任务完成</thinking>
    <task-down/>
 
 【注意事项】
@@ -1009,6 +1128,11 @@
 - <qr-code size="150">文本内容</qr-code> : 生成包含文本内容的二维码图片（尺寸可选，默认150px）。
 - <text-statistics>文本内容</text-statistics> : 统计文本的字符数、单词数、行数和预估阅读时间。
 - <json-validator>JSON字符串</json-validator> : 验证并格式化 JSON 字符串。
+- <random-password length="12"/> : 生成随机密码。
+- <reverse-string>文本</reverse-string> : 反转字符串。
+- <caesar-encrypt shift="3">文本</caesar-encrypt> : 凯撒加密。
+- <url-encode>文本</url-encode> : URL 编码。
+- <url-decode>文本</url-decode> : URL 解码。
 
 【重要限制】
 - **你绝对不能使用以下工具**：<file-create>, <file-update>, <file-delete>, <folder-create>, <rename>, <move>, <read-file>, <search-files>。
@@ -1033,15 +1157,18 @@
         async function runAgent(initialMsg) { 
             if (agentActive) return; 
             agentActive=true; 
-            document.getElementById('status').innerText='🔵 运行中'; 
+            document.getElementById('status').innerHTML='<i class="fas fa-circle"></i> 运行中'; 
             addUserMsg(initialMsg); 
-            const systemPrompt = currentMode === 'coding' ? SYSTEM_CODING : SYSTEM_AGENT;
-            conversationHistory = [{role:'system',content:systemPrompt}, {role:'user',content:initialMsg}];
+            if (conversationHistory.length === 0 || conversationHistory[0].role !== 'system') {
+                const systemPrompt = currentMode === 'coding' ? SYSTEM_CODING : SYSTEM_AGENT;
+                conversationHistory.unshift({role:'system', content:systemPrompt});
+            }
+            conversationHistory.push({role:'user', content:initialMsg});
             let step=0, maxSteps=currentMode === 'coding' ? 25 : 10;
             let lastOutputHash = "", consecutiveSame = 0;
             while(agentActive && step<maxSteps){ 
                 step++; 
-                document.getElementById('status').innerText=`🔵 思考中 (${step})`; 
+                document.getElementById('status').innerHTML=`<i class="fas fa-circle"></i> 思考中 (${step})`; 
                 let agentDiv=addAgentMsgWithStream(); 
                 let full=''; 
                 const startTime = Date.now();
@@ -1061,22 +1188,22 @@
                 conversationHistory.push({role:'assistant',content:full});
                 if(feedbacks.length) conversationHistory.push({role:'system',content:'反馈:\n'+feedbacks.join('\n')});
                 const duration = Date.now() - startTime;
-                addConsoleLog(`🤖 本次消耗 ≈ ${tokenEst} tokens | 累计 ${totalTokensUsed} tokens (耗时 ${duration}ms)`, 'info');
+                addConsoleLog(`🤖 本次消耗 ≈ ${tokenEst} tok | 累计 ${totalTokensUsed} tok (耗时 ${duration}ms)`, 'info');
                 if(hasTaskDown){ addFeedbackMsg('🏁 任务完成'); break; }
                 if(hasWaiting){ 
-                    document.getElementById('status').innerText='⏸️ 等待回复'; 
+                    document.getElementById('status').innerHTML='<i class="fas fa-pause-circle"></i> 等待回复'; 
                     await new Promise(r=>{ waitingResolver=r; }); 
                     if(window._pendingReply){ 
                         conversationHistory.push({role:'user',content:window._pendingReply}); 
                         addUserMsg(window._pendingReply); 
                         window._pendingReply=null; 
                     } 
-                    document.getElementById('status').innerText='🔵 继续执行'; 
+                    document.getElementById('status').innerHTML='<i class="fas fa-circle"></i> 继续执行'; 
                 }
                 if (currentMode !== 'coding' && !full.match(/<[a-z-]+/)) break;
             } 
             agentActive=false; 
-            document.getElementById('status').innerText='⚪ 空闲'; 
+            document.getElementById('status').innerHTML='<i class="fas fa-circle"></i> 空闲'; 
         }
 
         async function exportToPdf() { 
@@ -1106,11 +1233,11 @@
         }
 
         setInterval(()=>{ 
-            if(document.getElementById('status').innerText.includes('等待回复') && !document.getElementById('waitBox')){ 
-                const div=document.createElement('div'); div.id='waitBox'; div.innerHTML=`<input id="waitInput" placeholder="回复..." style="flex:1;background:transparent;border:none;color:white;"><button id="waitSend" class="primary">发送</button>`; 
+            if(document.getElementById('status').innerHTML.includes('等待回复') && !document.getElementById('waitBox')){ 
+                const div=document.createElement('div'); div.id='waitBox'; div.innerHTML=`<input id="waitInput" placeholder="回复..." style="flex:1;background:transparent;border:none;color:white;"><button id="waitSend" class="primary"><i class="fas fa-paper-plane"></i> 发送</button>`; 
                 document.getElementById('messages').appendChild(div); 
                 document.getElementById('waitSend').onclick=()=>{ const val=document.getElementById('waitInput').value.trim(); if(val && waitingResolver){ window._pendingReply=val; waitingResolver(); div.remove(); } }; 
-            } else if(!document.getElementById('status').innerText.includes('等待回复') && document.getElementById('waitBox')) document.getElementById('waitBox')?.remove(); 
+            } else if(!document.getElementById('status').innerHTML.includes('等待回复') && document.getElementById('waitBox')) document.getElementById('waitBox')?.remove(); 
         },200);
     })();
 </script>
