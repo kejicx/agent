@@ -667,7 +667,7 @@
     <div class="top-bar">
         <div class="logo-area">
             <i class="fas fa-infinity logo-icon"></i>
-            <span class="logo-text">MuYanCoding</span>
+            <span class="logo-text">MuYanAgent</span>
             <div class="mode-switch" id="modeSwitch">
                 <span class="mode-option active" data-mode="coding"><i class="fas fa-code"></i><span>CodingAgent</span></span>
                 <span class="mode-option" data-mode="agent"><i class="fas fa-comments"></i><span>Agent</span></span>
@@ -677,7 +677,7 @@
             <button id="settingsBtn"><i class="fas fa-sliders-h"></i> 设置</button>
             <button id="stopBtn" class="danger"><i class="fas fa-stop"></i> 停止</button>
             <button id="clearMemoryBtn"><i class="fas fa-trash-alt"></i> 清除</button>
-            <div class="token-display" id="tokenDisplay"><i class="fas fa-chart-simple"></i> 0 tok</div>
+            <div class="token-display" id="tokenDisplay"><i class="fas fa-chart-simple"></i> 0 token</div>
             <div class="status-badge" id="status"><i class="fas fa-circle"></i> 空闲</div>
         </div>
     </div>
@@ -685,7 +685,7 @@
         <div class="workspace-area" id="workspaceArea">
             <div class="sidebar">
                 <div class="file-header">
-                    <span><i class="fas fa-folder-open"></i> 资源管理器</span>
+                    <span><i class="fas fa-folder-open"></i> Agent工作台</span>
                     <div class="file-header-actions">
                         <button id="newFileBtn" title="新建文件"><i class="fas fa-file"></i></button>
                         <button id="newFolderBtn" title="新建文件夹"><i class="fas fa-folder"></i></button>
@@ -978,12 +978,12 @@
             if (mode === 'coding') {
                 workspaceArea.classList.remove('hidden');
                 codingOpt.classList.add('active'); agentOpt.classList.remove('active');
-                addFeedbackMsg('✅ 已切换到 CodingAgent 模式。资源管理器和编辑器已显示。');
-                addConsoleLog('模式切换: CodingAgent (完整工具集)', 'info');
+                addFeedbackMsg('✅ 已切换到 CodingAgent 模式。');
+                addConsoleLog('模式切换: CodingAgent （代码编写模式）', 'info');
             } else {
                 workspaceArea.classList.add('hidden');
                 agentOpt.classList.add('active'); codingOpt.classList.remove('active');
-                addFeedbackMsg('✅ 已切换到 Agent 模式。资源管理器和编辑器已隐藏。');
+                addFeedbackMsg('✅ 已切换到 Agent 模式。');
                 addConsoleLog('模式切换: Agent (自然语言模式)', 'info');
             }
             if (agentActive) { agentActive = false; if (waitingResolver) waitingResolver(); waitingResolver = null; }
@@ -1189,7 +1189,7 @@
                 conversationHistory.push({role:'assistant',content:full});
                 if(feedbacks.length) conversationHistory.push({role:'system',content:'反馈:\n'+feedbacks.join('\n')});
                 const duration = Date.now() - startTime;
-                addConsoleLog(`🤖 本次消耗 ≈ ${tokenEst} tok | 累计 ${totalTokensUsed} tok (耗时 ${duration}ms)`, 'info');
+                addConsoleLog(`🤖 本次消耗 ≈ ${tokenEst} tok | 累计 ${totalTokensUsed} token (耗时 ${duration}ms)`, 'info');
                 if(hasTaskDown){ addFeedbackMsg('🏁 任务完成'); break; }
                 if(hasWaiting){ 
                     document.getElementById('status').innerHTML='<i class="fas fa-pause-circle"></i> 等待回复'; 
@@ -1214,7 +1214,7 @@
             const clone=document.createElement('div'); 
             clone.style.position='absolute';clone.style.left='-9999px';clone.style.top='0';clone.style.width='800px';clone.style.background='white';clone.style.padding='30px'; 
             const header=document.createElement('div'); 
-            header.innerHTML=`<h1>MuYanCoding 对话</h1><p>${new Date().toLocaleString()}</p><p>模式: ${currentMode === 'coding' ? 'CodingAgent' : 'Agent'} | 总计Token: ${totalTokensUsed}</p>`; 
+            header.innerHTML=`<h1>MuYanAgent 对话记录</h1><p>${new Date().toLocaleString()}</p><p>模式: ${currentMode === 'coding' ? 'CodingAgent' : 'Agent'} | 总计Token: ${totalTokensUsed}</p>`; 
             clone.appendChild(header); 
             const msgsClone=msgs.cloneNode(true); 
             for(let img of msgsClone.querySelectorAll('img')) try{ const c=await html2canvas(img); img.src=c.toDataURL(); }catch(e){} 
